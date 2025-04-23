@@ -1,5 +1,0 @@
-(sym_lib_table
-  (version 7)
-  (lib (name "ODrive")(type "KiCad")(uri "${KIPRJMOD}/ODrive.kicad_sym")(options "")(descr ""))
-  (lib (name "MicroStart")(type "KiCad")(uri "${KIPRJMOD}/MicroStart.kicad_sym")(options "")(descr ""))
-)
