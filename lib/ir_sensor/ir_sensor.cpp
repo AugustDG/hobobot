@@ -1,8 +1,8 @@
 #include "ir_sensor.h"
 
-ir_sensor *ir_sensor_create(const ir_sensor_config *config)
+ir_sensor_t *ir_sensor_create(const ir_sensor_config_t *config)
 {
-    ir_sensor *sensor = new ir_sensor;
+    ir_sensor_t *sensor = new ir_sensor_t;
     if (!sensor)
     {
         printf("Failed to allocate memory for IR sensor\n");
@@ -20,7 +20,7 @@ ir_sensor *ir_sensor_create(const ir_sensor_config *config)
     return sensor;
 }
 
-int ir_sensor_read(ir_sensor *sensor)
+int ir_sensor_read(ir_sensor_t *sensor)
 {
     if (sensor->digital)
         return digitalRead(sensor->pin);

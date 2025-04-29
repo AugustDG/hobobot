@@ -4,19 +4,19 @@
 
 typedef void (*line_sensor_callback)();
 
-struct line_sensor
+struct line_sensor_t
 {
     u_int16_t pin;
     bool digital;
     bool interrupt;
 };
 
-struct line_sensor_config
+struct line_sensor_config_t
 {
     u_int16_t pin;
     line_sensor_callback callback;
 };
 
-line_sensor *line_sensor_create(const line_sensor_config *config);
+line_sensor_t *line_sensor_create(const line_sensor_config_t *config);
 
-int line_sensor_read(line_sensor *sensor);
+int line_sensor_read(line_sensor_t *sensor);

@@ -1,8 +1,8 @@
 #include "line_sensor.h"
 
-line_sensor *line_sensor_create(const line_sensor_config *config)
+line_sensor_t *line_sensor_create(const line_sensor_config_t *config)
 {
-    line_sensor *sensor = new line_sensor;
+    line_sensor_t *sensor = new line_sensor_t;
     if (!sensor)
     {
         printf("Failed to allocate memory for IR sensor\n");
@@ -19,7 +19,7 @@ line_sensor *line_sensor_create(const line_sensor_config *config)
     return sensor;
 }
 
-int line_sensor_read(line_sensor *sensor)
+int line_sensor_read(line_sensor_t *sensor)
 {
     return analogRead(sensor->pin);
 }
