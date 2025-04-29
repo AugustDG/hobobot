@@ -1,13 +1,10 @@
 #include "ir_sensor.h"
+#include "utils.hpp"
 
 ir_sensor_t *ir_sensor_create(const ir_sensor_config_t *config)
 {
     ir_sensor_t *sensor = new ir_sensor_t;
-    if (!sensor)
-    {
-        printf("Failed to allocate memory for IR sensor\n");
-        return nullptr;
-    }
+    CREATION_CHECK(sensor);
 
     sensor->pin = config->pin;
     sensor->digital = config->digital;

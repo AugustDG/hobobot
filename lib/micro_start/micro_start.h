@@ -18,4 +18,4 @@ struct micro_start_config
 
 micro_start_t *micro_start_create(const micro_start_config *config);
 
-bool micro_start_read(micro_start_t *sensor);
+bool micro_start_read(const micro_start_t *sensor);

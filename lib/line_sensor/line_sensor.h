@@ -19,4 +19,4 @@ struct line_sensor_config_t
 
 line_sensor_t *line_sensor_create(const line_sensor_config_t *config);
 
-int line_sensor_read(line_sensor_t *sensor);
+int line_sensor_read(const line_sensor_t *sensor);

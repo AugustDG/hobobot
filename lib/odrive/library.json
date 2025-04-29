@@ -1,0 +1,9 @@
+{
+    "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
+    "name": "hobodrive",
+    "version": "0.0.1",
+    "dependencies": {
+        "flexcan-t4": "https://github.com/tonton81/FlexCAN_T4.git",
+        "odrivearduino": "https://github.com/odriverobotics/ODriveArduino.git"
+    }
+}
