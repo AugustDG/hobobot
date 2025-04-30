@@ -36,7 +36,7 @@ void micro_start_cb();
 void setup()
 {
     Serial.begin(115200);
-    delay(100);
+    delay(1000);
 
     Serial.print("Starting up...\n");
 
@@ -70,7 +70,7 @@ void setup()
     Serial.printf("Creating ODrives\n");
 
     can_config_t can_config = {
-        // .baudrate = 250000,
+        .baudrate = 500000,
     };
     Serial.printf("Using CAN baudrate: %d\n", can_config.baudrate);
 
@@ -92,16 +92,17 @@ void setup()
     Serial.printf("Waiting for ODrives' heartbeat...\n");
     while (!o_left->updated_heartbeat || !o_right->updated_heartbeat)
     {
-        delay(100);
+        odrive_can_refresh_events(o_left); // doesn't have to be called for both ODrives, since they share the same CAN bus
         Serial.printf(".");
+        delay(100);
     }
-    Serial.printf("ODrives' heartbeat received!\n");
+    Serial.printf("\nODrives' heartbeat received!\n");
 
     Serial.print("Starting up complete!\n");
 
     Serial.print("Enabling closed loop control...\n");
-    set_closed_loop_control(o_left);
-    set_closed_loop_control(o_right);
+    // set_closed_loop_control(o_left);
+    // set_closed_loop_control(o_right);
     Serial.print("Closed loop control enabled!\n");
 }
 

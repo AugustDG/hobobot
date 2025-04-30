@@ -5,6 +5,8 @@
 
 void odrive_cb(const CAN_message_t &msg)
 {
+    Serial.printf("ODrive CAN message received: ID: %x, len: %d, data: ", msg.id, msg.len);
+
     for (auto &&odrive : odrives)
         onReceive(msg, *odrive->odrive_can);
 }
@@ -79,6 +81,11 @@ odrive_t *odrive_create(const odrive_config_t *config)
     odrives.push_back(odrive);
 
     return odrive;
+}
+
+void odrive_can_refresh_events(odrive_t *odrive)
+{
+    refresh_can_events(odrive->can_one);
 }
 
 void set_state(odrive_t *odrive, ODriveAxisState requested_state)

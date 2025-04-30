@@ -18,3 +18,8 @@ can_one_t *can_one_create(const can_config_t *config)
 
     return can_one;
 }
+
+void refresh_can_events(can_one_t *can_one)
+{
+    can_one->interface->events();
+}

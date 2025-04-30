@@ -46,11 +46,12 @@ void odrive_cb(const CAN_message_t &msg);
 void on_heartbeat(Heartbeat_msg_t &msg, void *odrive);
 void on_feedback(Get_Encoder_Estimates_msg_t &msg, void *odrive);
 void on_torques(Get_Torques_msg_t &msg, void *odrive);
-void on_currents(Get_Powers_msg_t &msg, void *odrive);
+void on_currents(Get_Iq_msg_t &msg, void *odrive);
 void on_bus_vi(Get_Bus_Voltage_Current_msg_t &msg, void *odrive);
 void on_error(Get_Error_msg_t &msg, void *odrive);
 
 odrive_t *odrive_create(const odrive_config_t *config);
+void odrive_can_refresh_events(odrive_t *odrive);
 
 // setters
 
