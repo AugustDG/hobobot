@@ -51,7 +51,8 @@ void on_bus_vi(Get_Bus_Voltage_Current_msg_t &msg, void *odrive);
 void on_error(Get_Error_msg_t &msg, void *odrive);
 
 odrive_t *odrive_create(const odrive_config_t *config);
-void odrive_can_refresh_events(odrive_t *odrive);
+void odrive_can_refresh_events();
+bool odrive_can_process_message();
 
 // setters
 

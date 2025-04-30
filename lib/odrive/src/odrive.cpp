@@ -5,8 +5,6 @@
 
 void odrive_cb(const CAN_message_t &msg)
 {
-    Serial.printf("ODrive CAN message received: ID: %x, len: %d, data: ", msg.id, msg.len);
-
     for (auto &&odrive : odrives)
         onReceive(msg, *odrive->odrive_can);
 }
@@ -83,9 +81,30 @@ odrive_t *odrive_create(const odrive_config_t *config)
     return odrive;
 }
 
-void odrive_can_refresh_events(odrive_t *odrive)
+void odrive_can_refresh_events()
 {
-    refresh_can_events(odrive->can_one);
+    if (odrives.empty())
+        return;
+
+    odrives[0]->can_one->interface->events(); // process the first CAN interface
+}
+
+bool odrive_can_process_message()
+{
+    if (odrives.empty())
+        return false; // no ODrive to process
+
+    odrive_can_refresh_events();
+
+    CAN_message_t msg;
+    can_one_t *can_one = odrives[0]->can_one;
+
+    bool has_msg = read_can_message(can_one, &msg); // process the message
+
+    if (has_msg)
+        odrive_cb(msg); // call the ODrive callback
+
+    return has_msg;
 }
 
 void set_state(odrive_t *odrive, ODriveAxisState requested_state)
@@ -102,7 +121,7 @@ void set_state(odrive_t *odrive, ODriveAxisState requested_state)
         for (int i = 0; i < 15; i++)
         {
             delay(10);
-            pumpEvents(*odrive->can_one->interface);
+            odrive_can_process_message();
         }
     }
 }
@@ -112,17 +131,16 @@ void set_controller_mode(odrive_t *odrive, ODriveControlMode control_mode, ODriv
     ODriveCAN *odrive_can = odrive->odrive_can;
     odrive->updated_heartbeat = false; // because we need to wait for a new heartbeat, the current one is old
 
-    while (odrive->latest_heartbeat.Procedure_Result != ODriveProcedureResult::PROCEDURE_RESULT_SUCCESS)
+    while (odrive->latest_heartbeat.Procedure_Result != ODriveProcedureResult::PROCEDURE_RESULT_BUSY)
     {
         odrive_can->clearErrors();
         delay(1);
         odrive_can->setControllerMode(control_mode, input_mode);
 
-        // TODO: unsure if this is necessary for controller mode setting
         for (int i = 0; i < 15; i++)
         {
             delay(10);
-            pumpEvents(*odrive->can_one->interface);
+            odrive_can_process_message();
         }
     }
 }

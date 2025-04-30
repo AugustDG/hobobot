@@ -70,7 +70,7 @@ void setup()
     Serial.printf("Creating ODrives\n");
 
     can_config_t can_config = {
-        .baudrate = 500000,
+        .baudrate = 250000,
     };
     Serial.printf("Using CAN baudrate: %d\n", can_config.baudrate);
 
@@ -92,26 +92,25 @@ void setup()
     Serial.printf("Waiting for ODrives' heartbeat...\n");
     while (!o_left->updated_heartbeat || !o_right->updated_heartbeat)
     {
-        odrive_can_refresh_events(o_left); // doesn't have to be called for both ODrives, since they share the same CAN bus
-        Serial.printf(".");
-        delay(100);
+        odrive_can_process_message();
+        delay(10);
     }
-    Serial.printf("\nODrives' heartbeat received!\n");
+    Serial.printf("ODrives' heartbeat received!\n");
 
     Serial.print("Starting up complete!\n");
 
     Serial.print("Enabling closed loop control...\n");
-    // set_closed_loop_control(o_left);
-    // set_closed_loop_control(o_right);
+    set_closed_loop_control(o_left);
+    set_closed_loop_control(o_right);
     Serial.print("Closed loop control enabled!\n");
 }
 
 void loop()
 {
+    odrive_can_process_message();
+
     odrive_test();
     // sensors_test();
-
-    delay(10);
 }
 
 void odrive_test()
@@ -123,6 +122,10 @@ void odrive_test()
     float or_p = get_position(o_right);
     float or_v = get_velocity(o_right);
     Serial.printf("Right ODrive Position: %f, Velocity: %f\n", or_p, or_v);
+
+    set_velocity(o_left, 10.f, 0.f);
+    set_velocity(o_right, 0.f, 0.f);
+    Serial.printf("Setting new position for both ODrives\n");
 }
 
 void sensors_test()

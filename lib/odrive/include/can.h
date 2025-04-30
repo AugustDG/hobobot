@@ -19,3 +19,4 @@ struct can_one_t
 can_one_t *can_one_create(const can_config_t *config);
 
 void refresh_can_events(can_one_t *can_one);
+bool read_can_message(can_one_t *can_one, CAN_message_t *msg);

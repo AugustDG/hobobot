@@ -11,10 +11,6 @@ can_one_t *can_one_create(const can_config_t *config)
 
     can_one->interface->begin();
     can_one->interface->setBaudRate(config->baudrate);
-    can_one->interface->setMaxMB(16);
-    can_one->interface->enableFIFO();
-    can_one->interface->enableFIFOInterrupt();
-    can_one->interface->onReceive(config->callback);
 
     return can_one;
 }
@@ -22,4 +18,9 @@ can_one_t *can_one_create(const can_config_t *config)
 void refresh_can_events(can_one_t *can_one)
 {
     can_one->interface->events();
+}
+
+bool read_can_message(can_one_t *can_one, CAN_message_t *msg)
+{
+    return can_one->interface->read(*msg) > 0;
 }
