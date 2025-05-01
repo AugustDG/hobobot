@@ -1,10 +1,16 @@
 #include "odrive.h"
 
-#include <ODriveFlexCAN.hpp>
+#include "ODriveESP32.h"
 #include "utils.hpp"
 
-void odrive_cb(const CAN_message_t &msg)
+void odrive_cb(int packet_size)
 {
+    if (packet_size > 8)
+        return; // not supported
+
+    CanMsg msg = {.id = (unsigned int)CAN.packetId(), .len = (uint8_t)packet_size};
+    CAN.readBytes(msg.buffer, packet_size);
+
     for (auto &&odrive : odrives)
         onReceive(msg, *odrive->odrive_can);
 }
@@ -63,7 +69,7 @@ odrive_t *odrive_create(const odrive_config_t *config)
     odrive->can_one = can_one_create(&can_config);
     CREATION_CHECK(odrive->can_one);
 
-    ODriveCanIntfWrapper can_intf = wrap_can_intf(*(odrive->can_one->interface));
+    ODriveCanIntfWrapper can_intf = wrap_can_intf(odrive->can_one->interface);
     odrive->odrive_can = new ODriveCAN(can_intf, config->node_id);
     CREATION_CHECK(odrive->odrive_can);
 
@@ -83,28 +89,12 @@ odrive_t *odrive_create(const odrive_config_t *config)
 
 void odrive_can_refresh_events()
 {
-    if (odrives.empty())
-        return;
-
-    odrives[0]->can_one->interface->events(); // process the first CAN interface
+    pumpEvents(odrives[0]->can_one->interface);
 }
 
 bool odrive_can_process_message()
 {
-    if (odrives.empty())
-        return false; // no ODrive to process
-
     odrive_can_refresh_events();
-
-    CAN_message_t msg;
-    can_one_t *can_one = odrives[0]->can_one;
-
-    bool has_msg = read_can_message(can_one, &msg); // process the message
-
-    if (has_msg)
-        odrive_cb(msg); // call the ODrive callback
-
-    return has_msg;
 }
 
 void set_state(odrive_t *odrive, ODriveAxisState requested_state)

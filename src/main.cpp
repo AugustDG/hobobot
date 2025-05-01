@@ -36,42 +36,12 @@ void micro_start_cb();
 void setup()
 {
     Serial.begin(115200);
-    delay(1000);
 
     Serial.print("Starting up...\n");
 
-    Serial.printf("Creating %d IR sensors\n", ARRAY_SIZE(ir_sensors));
-    for (size_t i = 0; i < ARRAY_SIZE(ir_sensors); i++)
-    {
-        const ir_sensor_config_t config = {
-            .pin = IR_PINS[i],
-            .digital = true,
-            .callback = nullptr,
-        };
-
-        ir_sensors[i] = ir_sensor_create(&config);
-    }
-
-    Serial.printf("Creating %d line sensors\n", ARRAY_SIZE(line_sensors));
-    for (size_t i = 0; i < ARRAY_SIZE(line_sensors); i++)
-    {
-        const line_sensor_config_t config = {
-            .pin = LINE_PINS[i],
-            .callback = nullptr,
-        };
-
-        line_sensors[i] = line_sensor_create(&config);
-    }
-
-    Serial.printf("Creating micro start sensor\n");
-    micro_start_config micro_start_config = {MICRO_START_PIN, micro_start_cb};
-    micro_start = micro_start_create(&micro_start_config);
-
     Serial.printf("Creating ODrives\n");
 
-    can_config_t can_config = {
-        .baudrate = 250000,
-    };
+    can_config_t can_config = {};
     Serial.printf("Using CAN baudrate: %d\n", can_config.baudrate);
 
     odrive_config_t odrive_left_config = {

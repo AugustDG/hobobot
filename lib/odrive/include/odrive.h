@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <ODriveCAN.h>
+#include <vector>
 #include "can.h"
 
 enum odrive_node_id_t
@@ -42,7 +43,7 @@ struct odrive_config_t
 
 static std::vector<odrive_t *> odrives = std::vector<odrive_t *>();
 
-void odrive_cb(const CAN_message_t &msg);
+void odrive_cb(int packet_size);
 void on_heartbeat(Heartbeat_msg_t &msg, void *odrive);
 void on_feedback(Get_Encoder_Estimates_msg_t &msg, void *odrive);
 void on_torques(Get_Torques_msg_t &msg, void *odrive);
