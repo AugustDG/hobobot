@@ -12,6 +12,14 @@ struct odrive_t;
 
 typedef void (*odrive_error_callback_t)(odrive_t *odrive);
 
+enum odrive_controller_mode_change_t : uint8_t
+{
+    NO_MODE_CHANGE = 0,
+    POSITION_CONTROL = 1,
+    VELOCITY_CONTROL = 2,
+    TORQUE_CONTROL = 3,
+};
+
 enum odrive_node_id_t : uint32_t
 {
     ODRV0_NODE_ID = 0,
@@ -67,6 +75,9 @@ bool wait_for_heartbeat(const std::vector<odrive_t *> &odrive, uint32_t timeout 
 void odrive_can_refresh_events();
 bool odrive_can_process_message();
 
+void save_configuration(odrive_t *odrive);
+void reboot(odrive_t *odrive);
+
 // setters
 
 void set_idle(odrive_t *odrive);
@@ -79,8 +90,8 @@ void set_torque_control(odrive_t *odrive);
 void set_state(odrive_t *odrive, ODriveAxisState requested_state);
 void set_controller_mode(odrive_t *odrive, ODriveControlMode control_mode, ODriveInputMode input_mode);
 
-void e_stop(odrive_t *odrive);
-void e_stop_all();
+void stop(odrive_t *odrive);
+void stop_all();
 
 void set_position(odrive_t *odrive, float position, float ff_velocity = 0.f, float ff_torque = 0.f);
 void set_velocity(odrive_t *odrive, float velocity, float ff_torque = 0.f);

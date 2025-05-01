@@ -10,6 +10,8 @@
 
 /* CONSTANTS */
 
+const odrive_controller_mode_change_t controller_mode_change = NO_MODE_CHANGE;
+
 const uint16_t IR_PINS[] = {0, 1, 2, 3, 4, 5, 6};
 const uint16_t LINE_PINS[] = {14, 15, 16, 17, 20, 21};
 const uint16_t MICRO_START_PIN = 6;
@@ -99,13 +101,43 @@ void setup()
         Serial.print("Waiting for ODrive heartbeats...\n");
     while (!wait_for_heartbeat_all(3000));
 
+    set_idle(o_left);
+    set_idle(o_right);
+
+    switch (controller_mode_change)
+    {
+    case POSITION_CONTROL:
+        Serial.print("Setting ODrive to position control...\n");
+        set_position_control(o_left);
+        set_position_control(o_right);
+        break;
+    case VELOCITY_CONTROL:
+        Serial.print("Setting ODrive to velocity control...\n");
+        set_velocity_control(o_left);
+        set_velocity_control(o_right);
+        break;
+    case TORQUE_CONTROL:
+        Serial.print("Setting ODrive to torque control...\n");
+        set_torque_control(o_left);
+        set_torque_control(o_right);
+        break;
+    case NO_MODE_CHANGE:
+    default:
+        Serial.print("No controller mode change requested...\n");
+        break;
+    }
+
+    if (controller_mode_change != NO_MODE_CHANGE)
+    {
+        // we wait again, because the ODrive will reboot after setting the control mode
+        do
+            Serial.print("Waiting for ODrive heartbeats...\n");
+        while (!wait_for_heartbeat_all(3000));
+    }
+
     Serial.print("Enabling closed loop control...\n");
     set_closed_loop_control(o_left);
-    set_closed_loop_control(o_right);
-
-    Serial.print("Enabling velocity control...\n");
-    set_velocity_control(o_left);
-    set_velocity_control(o_right);
+    // set_closed_loop_control(o_right);
 
     Serial.print("Starting up complete!\n");
 }
@@ -141,7 +173,7 @@ void odrive_error_cb(odrive_t *odrive)
 
     Serial.printf("ODrive(%d) error: %d, disarm reason: %d\n", odrive->node_id, odrive->latest_error.Active_Errors, odrive->latest_error.Disarm_Reason);
 
-    e_stop_all();
+    stop_all();
 }
 
 /* TESTS */
@@ -154,8 +186,10 @@ void odrive_test()
     float or_p = get_position(o_right);
     float or_v = get_velocity(o_right);
 
-    set_velocity(o_left, 0.f, 0.f);
-    set_velocity(o_right, MINIMUM_NON_SHAKE_SPEED, 0.f);
+    // Serial.printf("ODrive(%d) position: %f, velocity: %f\n", o_right->node_id, or_p, or_v);
+
+    set_velocity(o_left, -or_p, 0.f);
+    // set_velocity(o_right, sin((double)millis()) * MINIMUM_NON_SHAKE_SPEED, 0.f);
 }
 
 void sensors_test()

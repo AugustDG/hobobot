@@ -8,10 +8,11 @@ typedef void (*can_callback)(const CAN_message_t &msg);
 struct can_config_t
 {
     uint64_t baudrate = 250000;
+    uint8_t rx_mb_count = 56;
     can_callback callback = nullptr;
 };
 
-static FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> interface;
+static FlexCAN_T4<CAN1, RX_SIZE_1024, TX_SIZE_32> interface;
 
 void can_setup(const can_config_t *config);
 
