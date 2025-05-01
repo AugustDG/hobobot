@@ -4,15 +4,16 @@
 #include <ODriveCAN.h>
 #include "can.h"
 
-enum odrive_node_id_t
+enum odrive_node_id_t : uint32_t
 {
-    ODRV0_NODE_ID = 0x00,
-    ODRV1_NODE_ID = 0x01,
+    ODRV0_NODE_ID = 0,
+    ODRV1_NODE_ID = 1,
 };
 
 struct odrive_t
 {
     ODriveCAN *odrive_can;
+    odrive_node_id_t node_id;
 
     Heartbeat_msg_t latest_heartbeat;
     bool updated_heartbeat = false;

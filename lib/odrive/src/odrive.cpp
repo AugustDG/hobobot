@@ -5,6 +5,9 @@
 
 void odrive_cb(const CAN_message_t &msg)
 {
+    if (msg.id == odrives[0]->node_id)
+        print_can_message(msg); // print the message if it is from the ODrive
+
     for (auto odrive : odrives)
         onReceive(msg, *odrive->odrive_can);
 }
@@ -14,6 +17,8 @@ void on_heartbeat(Heartbeat_msg_t &msg, void *odrive)
     odrive_t *odrive_ptr = static_cast<odrive_t *>(odrive);
     odrive_ptr->latest_heartbeat = msg;
     odrive_ptr->updated_heartbeat = true;
+
+    Serial.printf("ODrive (%u) heartbeat: Axis State: %d, Procedure Result: %d\n", odrive_ptr->node_id, msg.Axis_State, msg.Procedure_Result);
 }
 
 void on_feedback(Get_Encoder_Estimates_msg_t &msg, void *odrive)
@@ -55,16 +60,17 @@ odrive_t *odrive_create(const odrive_config_t *config)
 {
     odrive_t *odrive = new odrive_t;
     CREATION_CHECK(odrive);
+    odrive->node_id = static_cast<odrive_node_id_t>(config->node_id);
 
     odrive->odrive_can = new ODriveCAN(wrap_can_intf(interface), config->node_id);
     CREATION_CHECK(odrive->odrive_can);
 
     odrive->odrive_can->onFeedback(on_feedback, odrive);
     odrive->odrive_can->onStatus(on_heartbeat, odrive);
-    // odrive->odrive_can->onBusVI(on_bus_vi, odrive);
-    // odrive->odrive_can->onTorques(on_torques, odrive);
-    // odrive->odrive_can->onCurrents(on_currents, odrive);
-    // odrive->odrive_can->onError(on_error, odrive);
+    odrive->odrive_can->onBusVI(on_bus_vi, odrive);
+    odrive->odrive_can->onTorques(on_torques, odrive);
+    odrive->odrive_can->onCurrents(on_currents, odrive);
+    odrive->odrive_can->onError(on_error, odrive);
 
     // store a copy of the pointer to the ODrive
     odrives.push_back(odrive);
@@ -83,6 +89,13 @@ bool odrive_can_process_message()
 
     CAN_message_t msg;
     bool has_msg = read_can_message(msg); // process the message
+
+    /*     Serial.printf("ODrive CAN message: ID: %d, len: %d, data: ", msg.id, msg.len);
+        for (int i = 0; i < msg.len; i++)
+        {
+            Serial.printf("%02X ", msg.buf[i]);
+        }
+        Serial.println(); */
 
     if (has_msg)
         odrive_cb(msg); // call the ODrive callback

@@ -17,3 +17,4 @@ void can_setup(const can_config_t *config);
 
 void refresh_can_events();
 bool read_can_message(CAN_message_t &msg);
+void print_can_message(const CAN_message_t &msg);

@@ -8,12 +8,12 @@ void can_setup(const can_config_t *config)
     Serial.printf("TX size: %d\n", TX_SIZE_16);
 
     interface.begin();
-    // interface.setBaudRate(config->baudrate);
-    // interface.setMaxMB(16);                // set the maximum number of mailboxes
-    // interface.enableFIFO();                // enable FIFO mode
-    // interface.enableFIFOInterrupt();       // enable FIFO interrupt
-    // interface.onReceive(config->callback); // set the callback
-    // interface.mailboxStatus();             // print mailbox status
+    interface.setBaudRate(config->baudrate);
+    interface.setMaxMB(16);                // set the maximum number of mailboxes
+    interface.enableFIFO();                // enable FIFO mode
+    interface.enableFIFOInterrupt();       // enable FIFO interrupt
+    interface.onReceive(config->callback); // set the callback
+    interface.mailboxStatus();             // print mailbox status
 }
 
 void refresh_can_events()
@@ -24,4 +24,14 @@ void refresh_can_events()
 bool read_can_message(CAN_message_t &msg)
 {
     return interface.read(msg);
+}
+
+void print_can_message(const CAN_message_t &msg)
+{
+    Serial.printf("CAN message: ID: %d, len: %d, data: ", msg.id, msg.len);
+    for (int i = 0; i < msg.len; i++)
+    {
+        Serial.printf("%02X ", msg.buf[i]);
+    }
+    Serial.println();
 }
