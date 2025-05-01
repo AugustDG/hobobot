@@ -36,7 +36,7 @@ void micro_start_cb();
 void setup()
 {
     Serial.begin(115200);
-    delay(1000);
+    delay(200);
 
     Serial.print("Starting up...\n");
 
@@ -64,45 +64,54 @@ void setup()
     }
 
     Serial.printf("Creating micro start sensor\n");
-    micro_start_config micro_start_config = {MICRO_START_PIN, micro_start_cb};
+    micro_start_config micro_start_config = {
+        .pin = MICRO_START_PIN,
+        .callback = micro_start_cb,
+    };
     micro_start = micro_start_create(&micro_start_config);
 
     Serial.printf("Creating ODrives\n");
 
     can_config_t can_config = {
-        .baudrate = 250000,
+        .baudrate = 500000,
     };
-    Serial.printf("Using CAN baudrate: %d\n", can_config.baudrate);
+    can_setup(&can_config);
 
-    odrive_config_t odrive_left_config = {
-        .can_config = &can_config,
+    odrive_config_t o_left_config = {
         .node_id = ODRV0_NODE_ID,
     };
-    Serial.printf("Using ODrive left node ID: %d\n", odrive_left_config.node_id);
-
-    odrive_config_t odrive_right_config = {
-        .can_config = &can_config,
+    odrive_config_t o_right_config = {
         .node_id = ODRV1_NODE_ID,
     };
-    Serial.printf("Using ODrive right node ID: %d\n", odrive_right_config.node_id);
 
-    o_left = odrive_create(&odrive_left_config);
-    o_right = odrive_create(&odrive_right_config);
+    o_left = odrive_create(&o_left_config);
+    o_right = odrive_create(&o_right_config);
 
-    Serial.printf("Waiting for ODrives' heartbeat...\n");
-    while (!o_left->updated_heartbeat || !o_right->updated_heartbeat)
+    Serial.printf("Left ODrive ID: %d, waiting for hearbeat\n", o_left_config.node_id);
+    while (!o_left->updated_heartbeat)
     {
         odrive_can_process_message();
         delay(10);
     }
-    Serial.printf("ODrives' heartbeat received!\n");
+    Serial.printf("Left ODrive heartbeat received!\n");
 
-    Serial.print("Starting up complete!\n");
+    Serial.printf("Right ODrive ID: %d, waiting for hearbeat\n", o_right_config.node_id);
+    while (!o_right->updated_heartbeat)
+    {
+        odrive_can_process_message();
+        delay(10);
+    }
+    Serial.printf("Right ODrive heartbeat received!\n");
 
     Serial.print("Enabling closed loop control...\n");
     set_closed_loop_control(o_left);
     set_closed_loop_control(o_right);
-    Serial.print("Closed loop control enabled!\n");
+
+    Serial.print("Setting ODrives to closed loop control...\n");
+    set_closed_loop_control(o_left);
+    set_closed_loop_control(o_right);
+
+    Serial.print("Starting up complete!\n");
 }
 
 void loop()

@@ -12,7 +12,6 @@ enum odrive_node_id_t
 
 struct odrive_t
 {
-    can_one_t *can_one;
     ODriveCAN *odrive_can;
 
     Heartbeat_msg_t latest_heartbeat;
@@ -36,7 +35,6 @@ struct odrive_t
 
 struct odrive_config_t
 {
-    can_config_t *can_config;
     uint32_t node_id;
 };
 

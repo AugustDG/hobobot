@@ -11,12 +11,9 @@ struct can_config_t
     can_callback callback = nullptr;
 };
 
-struct can_one_t
-{
-    FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> *interface;
-};
+static FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> interface;
 
-can_one_t *can_one_create(const can_config_t *config);
+void can_setup(const can_config_t *config);
 
-void refresh_can_events(can_one_t *can_one);
-bool read_can_message(can_one_t *can_one, CAN_message_t *msg);
+void refresh_can_events();
+bool read_can_message(CAN_message_t &msg);

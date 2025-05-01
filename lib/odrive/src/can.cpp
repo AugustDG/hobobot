@@ -1,26 +1,27 @@
 #include "can.h"
 #include <utils.hpp>
 
-can_one_t *can_one_create(const can_config_t *config)
+void can_setup(const can_config_t *config)
 {
-    can_one_t *can_one = new can_one_t;
-    CREATION_CHECK(can_one);
+    Serial.printf("Baudrate: %d\n", config->baudrate);
+    Serial.printf("RX size: %d\n", RX_SIZE_256);
+    Serial.printf("TX size: %d\n", TX_SIZE_16);
 
-    can_one->interface = new FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16>;
-    CREATION_CHECK(can_one->interface);
-
-    can_one->interface->begin();
-    can_one->interface->setBaudRate(config->baudrate);
-
-    return can_one;
+    interface.begin();
+    // interface.setBaudRate(config->baudrate);
+    // interface.setMaxMB(16);                // set the maximum number of mailboxes
+    // interface.enableFIFO();                // enable FIFO mode
+    // interface.enableFIFOInterrupt();       // enable FIFO interrupt
+    // interface.onReceive(config->callback); // set the callback
+    // interface.mailboxStatus();             // print mailbox status
 }
 
-void refresh_can_events(can_one_t *can_one)
+void refresh_can_events()
 {
-    can_one->interface->events();
+    interface.events();
 }
 
-bool read_can_message(can_one_t *can_one, CAN_message_t *msg)
+bool read_can_message(CAN_message_t &msg)
 {
-    return can_one->interface->read(*msg) > 0;
+    return interface.read(msg);
 }

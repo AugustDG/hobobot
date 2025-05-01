@@ -5,7 +5,7 @@
 
 void odrive_cb(const CAN_message_t &msg)
 {
-    for (auto &&odrive : odrives)
+    for (auto odrive : odrives)
         onReceive(msg, *odrive->odrive_can);
 }
 
@@ -56,24 +56,15 @@ odrive_t *odrive_create(const odrive_config_t *config)
     odrive_t *odrive = new odrive_t;
     CREATION_CHECK(odrive);
 
-    // update CAN callback to the ODrive callback
-    can_config_t can_config = *config->can_config;
-    can_config.callback = odrive_cb;
-
-    odrive->can_one = can_one_create(&can_config);
-    CREATION_CHECK(odrive->can_one);
-
-    ODriveCanIntfWrapper can_intf = wrap_can_intf(*(odrive->can_one->interface));
-    odrive->odrive_can = new ODriveCAN(can_intf, config->node_id);
+    odrive->odrive_can = new ODriveCAN(wrap_can_intf(interface), config->node_id);
     CREATION_CHECK(odrive->odrive_can);
 
-    // set the callbacks
     odrive->odrive_can->onFeedback(on_feedback, odrive);
     odrive->odrive_can->onStatus(on_heartbeat, odrive);
-    odrive->odrive_can->onBusVI(on_bus_vi, odrive);
-    odrive->odrive_can->onTorques(on_torques, odrive);
-    odrive->odrive_can->onCurrents(on_currents, odrive);
-    odrive->odrive_can->onError(on_error, odrive);
+    // odrive->odrive_can->onBusVI(on_bus_vi, odrive);
+    // odrive->odrive_can->onTorques(on_torques, odrive);
+    // odrive->odrive_can->onCurrents(on_currents, odrive);
+    // odrive->odrive_can->onError(on_error, odrive);
 
     // store a copy of the pointer to the ODrive
     odrives.push_back(odrive);
@@ -83,23 +74,15 @@ odrive_t *odrive_create(const odrive_config_t *config)
 
 void odrive_can_refresh_events()
 {
-    if (odrives.empty())
-        return;
-
-    odrives[0]->can_one->interface->events(); // process the first CAN interface
+    refresh_can_events();
 }
 
 bool odrive_can_process_message()
 {
-    if (odrives.empty())
-        return false; // no ODrive to process
-
     odrive_can_refresh_events();
 
     CAN_message_t msg;
-    can_one_t *can_one = odrives[0]->can_one;
-
-    bool has_msg = read_can_message(can_one, &msg); // process the message
+    bool has_msg = read_can_message(msg); // process the message
 
     if (has_msg)
         odrive_cb(msg); // call the ODrive callback
