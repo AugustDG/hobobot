@@ -5,6 +5,8 @@
 #include "micro_start.h"
 #include "odrive.h"
 #include "utils.hpp"
+#include <avr/sleep.h>
+#include <constants.h>
 
 /* CONSTANTS */
 
@@ -23,13 +25,16 @@ odrive_t *o_right = nullptr;
 
 /* VOLATILES */
 
-volatile bool can_run = false;
+volatile bool match_started = true;
+volatile bool odrive_errored = false;
 
 /* FUNCTION DECLARATIONS */
 
+void micro_start_cb();
+void odrive_error_cb(odrive_t *odrive);
+
 void odrive_test();
 void sensors_test();
-void micro_start_cb();
 
 /* FUNCTION DEFINITIONS */
 
@@ -74,33 +79,25 @@ void setup()
 
     can_config_t can_config = {
         .baudrate = 500000,
-        .callback = odrive_cb,
+        .callback = odrive_can_cb,
     };
     can_setup(&can_config);
 
     odrive_config_t o_left_config = {
         .node_id = ODRV0_NODE_ID,
+        .error_callback = odrive_error_cb,
     };
     odrive_config_t o_right_config = {
         .node_id = ODRV1_NODE_ID,
+        .error_callback = odrive_error_cb,
     };
 
     o_left = odrive_create(&o_left_config);
     o_right = odrive_create(&o_right_config);
 
-    Serial.printf("Left ODrive ID: %d, waiting for hearbeat\n", o_left_config.node_id);
-    while (!o_left->updated_heartbeat)
-    {
-        odrive_can_refresh_events();
-        delay(10);
-    }
-
-    Serial.printf("Right ODrive ID: %d, waiting for hearbeat\n", o_right_config.node_id);
-    while (!o_right->updated_heartbeat)
-    {
-        odrive_can_refresh_events();
-        delay(10);
-    }
+    do
+        Serial.print("Waiting for ODrive heartbeats...\n");
+    while (!wait_for_heartbeat_all(3000));
 
     Serial.print("Enabling closed loop control...\n");
     set_closed_loop_control(o_left);
@@ -115,11 +112,39 @@ void setup()
 
 void loop()
 {
+    // something went wrong or we're not supposed to run yet
+    if (!match_started || odrive_errored)
+        return;
+
+    // necessary to process any CAN messages and interrupts
     odrive_can_refresh_events();
 
     odrive_test();
     // sensors_test();
 }
+
+/* CALLBACKS */
+
+void micro_start_cb()
+{
+    match_started = micro_start_read(micro_start);
+
+    Serial.printf("Micro start sensor switched to: %d\n", match_started);
+}
+
+void odrive_error_cb(odrive_t *odrive)
+{
+    if (odrive->latest_error.Active_Errors & ODriveError::ODRIVE_ERROR_INITIALIZING)
+        return; // ignore this error
+
+    odrive_errored = true;
+
+    Serial.printf("ODrive(%d) error: %d, disarm reason: %d\n", odrive->node_id, odrive->latest_error.Active_Errors, odrive->latest_error.Disarm_Reason);
+
+    e_stop_all();
+}
+
+/* TESTS */
 
 void odrive_test()
 {
@@ -130,7 +155,7 @@ void odrive_test()
     float or_v = get_velocity(o_right);
 
     set_velocity(o_left, 0.f, 0.f);
-    set_velocity(o_right, 0.f, 0.f);
+    set_velocity(o_right, MINIMUM_NON_SHAKE_SPEED, 0.f);
 }
 
 void sensors_test()
@@ -158,11 +183,4 @@ void sensors_test()
         Serial.printf("%d ", line_values[i]);
 
     Serial.printf("\n");
-}
-
-void micro_start_cb()
-{
-    can_run = micro_start_read(micro_start);
-
-    Serial.printf("Micro start sensor switched to: %d\n", can_run);
 }
