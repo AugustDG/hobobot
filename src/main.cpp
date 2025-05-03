@@ -1,20 +1,58 @@
 #include <Arduino.h>
+#include <avr/sleep.h>
 
 #include "ir_sensor.h"
 #include "line_sensor.h"
 #include "micro_start.h"
 #include "odrive.h"
+#include "state_machine.h"
 #include "utils.hpp"
-#include <avr/sleep.h>
-#include <constants.h>
+#include "types.h"
+#include "constants.h"
+
+/* FUNCTION DECLARATIONS */
+
+void micro_start_cb();
+void odrive_error_cb(odrive_t *odrive);
+
+void odrive_test();
+void sensors_test();
+
+void waiting_for_start();
+void searching_for_opponent();
+void moving_to_opponent();
+void avoiding_opponent();
+void avoiding_border();
+void stopped();
 
 /* CONSTANTS */
 
-const odrive_controller_mode_change_t controller_mode_change = NO_MODE_CHANGE;
+constexpr odrive_controller_mode_change_t controller_mode_change = NO_MODE_CHANGE;
 
-const uint16_t IR_PINS[] = {0, 1, 2, 3, 4, 5, 6};
-const uint16_t LINE_PINS[] = {14, 15, 16, 17, 20, 21};
-const uint16_t MICRO_START_PIN = 6;
+constexpr uint16_t IR_PINS[] = {0, 1, 2, 3, 4, 5, 6};
+constexpr uint16_t LINE_PINS[] = {14, 15, 16, 17, 20, 21};
+constexpr uint16_t MICRO_START_PIN = 6;
+
+constexpr sumo_state_t INITIAL_STATE = WAITING_FOR_START;
+const std::vector<uint32_t> STATES = {
+    WAITING_FOR_START,
+    SEARCHING_FOR_OPPONENT,
+    MOVING_TO_OPPONENT,
+    // AVOIDING_OPPONENT,
+    AVOIDING_BORDER,
+    STOPPED,
+};
+
+const std::vector<transition_t> TRANSITIONS = {
+    {ALL_STATES_NO_SELF, STOPPED},
+    {WAITING_FOR_START, SEARCHING_FOR_OPPONENT},
+    {SEARCHING_FOR_OPPONENT, MOVING_TO_OPPONENT},
+    {SEARCHING_FOR_OPPONENT, AVOIDING_BORDER},
+    {MOVING_TO_OPPONENT, SEARCHING_FOR_OPPONENT},
+    {MOVING_TO_OPPONENT, AVOIDING_BORDER},
+    {AVOIDING_BORDER, SEARCHING_FOR_OPPONENT},
+    {STOPPED, WAITING_FOR_START},
+};
 
 /* GLOBAL VARIABLES */
 
@@ -25,18 +63,12 @@ micro_start_t *micro_start = nullptr;
 odrive_t *o_left = nullptr;
 odrive_t *o_right = nullptr;
 
+state_machine_t *state_machine = nullptr;
+
 /* VOLATILES */
 
 volatile bool match_started = true;
 volatile bool odrive_errored = false;
-
-/* FUNCTION DECLARATIONS */
-
-void micro_start_cb();
-void odrive_error_cb(odrive_t *odrive);
-
-void odrive_test();
-void sensors_test();
 
 /* FUNCTION DEFINITIONS */
 
@@ -47,6 +79,7 @@ void setup()
 
     Serial.print("Starting up...\n");
 
+#if 0
     Serial.printf("Creating %d IR sensors\n", ARRAY_SIZE(ir_sensors));
     for (size_t i = 0; i < ARRAY_SIZE(ir_sensors); i++)
     {
@@ -137,22 +170,77 @@ void setup()
 
     Serial.print("Enabling closed loop control...\n");
     set_closed_loop_control(o_left);
-    // set_closed_loop_control(o_right);
+    set_closed_loop_control(o_right);
+#endif
 
-    Serial.print("Starting up complete!\n");
+    Serial.print("Creating state machine...\n");
+    state_machine_config_t state_machine_config = {
+        .initial_state = INITIAL_STATE,
+        .states = STATES,
+        .transitions = TRANSITIONS,
+        .state_actions = {
+            {WAITING_FOR_START, waiting_for_start},
+            {SEARCHING_FOR_OPPONENT, searching_for_opponent},
+            {MOVING_TO_OPPONENT, moving_to_opponent},
+            {AVOIDING_BORDER, avoiding_border},
+            {STOPPED, stopped},
+        },
+    };
+
+    if (!verify_state_machine_config(state_machine_config))
+    {
+        Serial.print("State machine config is invalid!\n");
+        return;
+    }
+    state_machine = state_machine_create(state_machine_config);
+
+    Serial.print("Start up complete!\n");
 }
 
 void loop()
 {
-    // something went wrong or we're not supposed to run yet
-    if (!match_started || odrive_errored)
-        return;
-
     // necessary to process any CAN messages and interrupts
     odrive_can_refresh_events();
 
-    odrive_test();
-    // sensors_test();
+    state_machine_loop(state_machine);
+}
+
+/* STATE FUNCTIONS */
+
+void waiting_for_start()
+{
+    Serial.print("Match started!\n");
+    set_state(state_machine, SEARCHING_FOR_OPPONENT);
+}
+
+void searching_for_opponent()
+{
+    Serial.print("Searching for opponent...\n");
+    set_state(state_machine, MOVING_TO_OPPONENT);
+}
+
+void moving_to_opponent()
+{
+    Serial.print("Moving to opponent...\n");
+    set_state(state_machine, AVOIDING_BORDER);
+}
+
+void avoiding_opponent()
+{
+    Serial.print("Avoiding opponent...\n");
+    set_state(state_machine, AVOIDING_BORDER);
+}
+
+void avoiding_border()
+{
+    Serial.print("Avoiding border...\n");
+    set_state(state_machine, STOPPED);
+}
+
+void stopped()
+{
+    Serial.print("Stopped...\n");
+    set_state(state_machine, WAITING_FOR_START);
 }
 
 /* CALLBACKS */
