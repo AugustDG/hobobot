@@ -1,26 +1,29 @@
 #include "ir_sensor.h"
 #include "utils.hpp"
 
-ir_sensor_t *ir_sensor_create(const ir_sensor_config_t *config)
+void ir_sensor_init(const ir_sensor_config_t &config, ir_sensor_t &sensor)
 {
-    ir_sensor_t *sensor = new ir_sensor_t;
-    CREATION_CHECK(sensor);
+    sensor.pin = config.pin;
+    sensor.interrupt = config.callback != nullptr;
+    sensor.filtered = config.debounce_config != nullptr;
 
-    sensor->pin = config->pin;
-    sensor->digital = config->digital;
-    sensor->interrupt = config->callback != nullptr;
+    pinMode(sensor.pin, INPUT);
 
-    pinMode(sensor->pin, INPUT);
-    if (sensor->interrupt)
-        attachInterrupt(sensor->pin, config->callback, CHANGE);
+    if (sensor.interrupt)
+        attachInterrupt(sensor.pin, config.callback, CHANGE);
 
-    return sensor;
+    if (sensor.filtered)
+        debounce_init(*config.debounce_config, sensor.debounce_filter);
 }
 
-int ir_sensor_read(ir_sensor_t *sensor)
+bool ir_sensor_read(ir_sensor_t &sensor)
 {
-    if (sensor->digital)
-        return digitalRead(sensor->pin);
+    bool value = digitalRead(sensor.pin) == HIGH;
+    if (sensor.filtered)
+    {
+        debounce_update(sensor.debounce_filter, value);
+        return sensor.debounce_filter.stable_value;
+    }
 
-    return analogRead(sensor->pin);
+    return value;
 }

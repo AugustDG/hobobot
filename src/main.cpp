@@ -56,14 +56,14 @@ const std::vector<transition_t> TRANSITIONS = {
 
 /* GLOBAL VARIABLES */
 
-ir_sensor_t *ir_sensors[ARRAY_SIZE(IR_PINS)];
-line_sensor_t *line_sensors[ARRAY_SIZE(LINE_PINS)];
-micro_start_t *micro_start = nullptr;
+ir_sensor_t ir_sensors[ARRAY_SIZE(IR_PINS)];
+line_sensor_t line_sensors[ARRAY_SIZE(LINE_PINS)];
+micro_start_t micro_start;
 
-odrive_t *o_left = nullptr;
-odrive_t *o_right = nullptr;
+odrive_t o_left;
+odrive_t o_right;
 
-state_machine_t *state_machine = nullptr;
+state_machine_t state_machine;
 
 /* VOLATILES */
 
@@ -79,18 +79,27 @@ void setup()
 
     Serial.print("Starting up...\n");
 
-#if 0
+    debounce_config_t debounce_config = {
+        .debounce_time = 50,
+        .initial_value = false,
+    };
+
     Serial.printf("Creating %d IR sensors\n", ARRAY_SIZE(ir_sensors));
     for (size_t i = 0; i < ARRAY_SIZE(ir_sensors); i++)
     {
         const ir_sensor_config_t config = {
             .pin = IR_PINS[i],
-            .digital = true,
             .callback = nullptr,
+            .debounce_config = &debounce_config,
         };
 
-        ir_sensors[i] = ir_sensor_create(&config);
+        ir_sensor_init(config, ir_sensors[i]);
     }
+
+    iir_moving_average_config_t moving_average_config = {
+        .alpha = 0.1f,
+        .initial_value = 2048.f,
+    };
 
     Serial.printf("Creating %d line sensors\n", ARRAY_SIZE(line_sensors));
     for (size_t i = 0; i < ARRAY_SIZE(line_sensors); i++)
@@ -98,9 +107,10 @@ void setup()
         const line_sensor_config_t config = {
             .pin = LINE_PINS[i],
             .callback = nullptr,
+            .moving_average_config = &moving_average_config,
         };
 
-        line_sensors[i] = line_sensor_create(&config);
+        line_sensor_init(config, line_sensors[i]);
     }
 
     Serial.printf("Creating micro start sensor\n");
@@ -108,8 +118,9 @@ void setup()
         .pin = MICRO_START_PIN,
         .callback = micro_start_cb,
     };
-    micro_start = micro_start_create(&micro_start_config);
+    micro_start_init(micro_start_config, micro_start);
 
+#if 0
     Serial.print("Creating ODrives\n");
 
     can_config_t can_config = {
@@ -127,12 +138,12 @@ void setup()
         .error_callback = odrive_error_cb,
     };
 
-    o_left = odrive_create(&o_left_config);
-    o_right = odrive_create(&o_right_config);
+    odrive_init(o_left_config, o_left);
+    odrive_init(o_right_config, o_right);
 
     do
         Serial.print("Waiting for ODrive heartbeats...\n");
-    while (!wait_for_heartbeat_all(3000));
+    while (!wait_for_heartbeats_all(3000));
 
     set_idle(o_left);
     set_idle(o_right);
@@ -165,7 +176,7 @@ void setup()
         // we wait again, because the ODrive will reboot after setting the control mode
         do
             Serial.print("Waiting for ODrive heartbeats...\n");
-        while (!wait_for_heartbeat_all(3000));
+        while (!wait_for_heartbeats_all(3000));
     }
 
     Serial.print("Enabling closed loop control...\n");
@@ -185,6 +196,7 @@ void setup()
             {AVOIDING_BORDER, avoiding_border},
             {STOPPED, stopped},
         },
+        .should_log = true,
     };
 
     if (!verify_state_machine_config(state_machine_config))
@@ -192,7 +204,7 @@ void setup()
         Serial.print("State machine config is invalid!\n");
         return;
     }
-    state_machine = state_machine_create(state_machine_config);
+    state_machine_init(state_machine_config, state_machine);
 
     Serial.print("Start up complete!\n");
 }
@@ -202,7 +214,7 @@ void loop()
     // necessary to process any CAN messages and interrupts
     odrive_can_refresh_events();
 
-    state_machine_loop(state_machine);
+    // state_machine_loop(state_machine);
 }
 
 /* STATE FUNCTIONS */

@@ -16,6 +16,6 @@ struct micro_start_config
     micro_start_callback callback;
 };
 
-micro_start_t *micro_start_create(const micro_start_config *config);
+void micro_start_init(const micro_start_config &config, micro_start_t &sensor);
 
-bool micro_start_read(const micro_start_t *sensor);
+bool micro_start_read(const micro_start_t &sensor);

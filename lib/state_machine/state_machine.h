@@ -40,11 +40,11 @@ struct state_machine_t
     bool should_log = false;
 };
 
-state_machine_t *state_machine_create(const state_machine_config_t &config);
+void state_machine_init(const state_machine_config_t &config, state_machine_t &state_machine);
 
-void state_machine_loop(const state_machine_t *state_machine);
+void state_machine_loop(const state_machine_t &state_machine);
 bool verify_state_machine_config(const state_machine_config_t &config);
 
 // setters
 
-void set_state(state_machine_t *state_machine, uint32_t new_state);
+void set_state(state_machine_t &state_machine, uint32_t new_state);

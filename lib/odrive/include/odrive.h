@@ -69,33 +69,33 @@ void on_currents(Get_Iq_msg_t &msg, void *odrive);
 void on_bus_vi(Get_Bus_Voltage_Current_msg_t &msg, void *odrive);
 void on_error(Get_Error_msg_t &msg, void *odrive);
 
-odrive_t *odrive_create(const odrive_config_t *config);
-bool wait_for_heartbeat_all(uint32_t timeout = 1000);
-bool wait_for_heartbeat(const std::vector<odrive_t *> &odrive, uint32_t timeout = 1000);
+void odrive_init(const odrive_config_t &config, odrive_t &odrive);
+bool wait_for_heartbeats_all(uint32_t timeout = 1000);
+bool wait_for_heartbeats(const std::vector<odrive_t *> &odrive, uint32_t timeout = 1000);
 void odrive_can_refresh_events();
 bool odrive_can_process_message();
 
-void save_configuration(odrive_t *odrive);
-void reboot(odrive_t *odrive);
+void save_configuration(const odrive_t &odrive);
+void reboot(const odrive_t &odrive);
 
 // setters
 
-void set_idle(odrive_t *odrive);
-void set_closed_loop_control(odrive_t *odrive);
+void set_idle(odrive_t &odrive);
+void set_closed_loop_control(odrive_t &odrive);
 
-void set_position_control(odrive_t *odrive);
-void set_velocity_control(odrive_t *odrive);
-void set_torque_control(odrive_t *odrive);
+void set_position_control(odrive_t &odrive);
+void set_velocity_control(odrive_t &odrive);
+void set_torque_control(odrive_t &odrive);
 
-void set_state(odrive_t *odrive, ODriveAxisState requested_state);
-void set_controller_mode(odrive_t *odrive, ODriveControlMode control_mode, ODriveInputMode input_mode);
+void set_state(odrive_t &odrive, ODriveAxisState requested_state);
+void set_controller_mode(odrive_t &odrive, ODriveControlMode control_mode, ODriveInputMode input_mode);
 
-void stop(odrive_t *odrive);
+void stop(odrive_t &odrive);
 void stop_all();
 
-void set_position(odrive_t *odrive, float position, float ff_velocity = 0.f, float ff_torque = 0.f);
-void set_velocity(odrive_t *odrive, float velocity, float ff_torque = 0.f);
-void set_torque(odrive_t *odrive, float torque);
+void set_position(odrive_t &odrive, float position, float ff_velocity = 0.f, float ff_torque = 0.f);
+void set_velocity(odrive_t &odrive, float velocity, float ff_torque = 0.f);
+void set_torque(odrive_t &odrive, float torque);
 
 void set_position_all(const std::vector<float> &positions, const std::vector<float> &ff_velocities = {}, const std::vector<float> &ff_torques = {});
 void set_velocity_all(const std::vector<float> &velocities, const std::vector<float> &ff_torques = {});
@@ -103,9 +103,9 @@ void set_torque_control_all(const std::vector<float> &torques);
 
 // getters
 
-float get_position(const odrive_t *odrive);
-float get_velocity(const odrive_t *odrive);
-float get_torque(const odrive_t *odrive);
-float get_current(const odrive_t *odrive);
-float get_bus_voltage(const odrive_t *odrive);
-float get_bus_current(const odrive_t *odrive);
+float get_position(const odrive_t &odrive);
+float get_velocity(const odrive_t &odrive);
+float get_torque(const odrive_t &odrive);
+float get_current(const odrive_t &odrive);
+float get_bus_voltage(const odrive_t &odrive);
+float get_bus_current(const odrive_t &odrive);
