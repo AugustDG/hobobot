@@ -4,6 +4,7 @@
 #include "ir_sensor.h"
 #include "line_sensor.h"
 #include "micro_start.h"
+#include "ddrive.h"
 #include "odrive.h"
 #include "state_machine.h"
 #include "utils.hpp"
@@ -13,8 +14,9 @@
 /* FUNCTION DECLARATIONS */
 
 void micro_start_cb();
-void odrive_error_cb(odrive_t *odrive);
+void odrive_error_cb(const odrive_t *odrive);
 
+void ddrive_test();
 void odrive_test();
 void sensors_test();
 
@@ -62,6 +64,7 @@ micro_start_t micro_start;
 
 odrive_t o_left;
 odrive_t o_right;
+ddrive_t ddrive;
 
 state_machine_t state_machine;
 
@@ -120,7 +123,6 @@ void setup()
     };
     micro_start_init(micro_start_config, micro_start);
 
-#if 0
     Serial.print("Creating ODrives\n");
 
     can_config_t can_config = {
@@ -179,10 +181,16 @@ void setup()
         while (!wait_for_heartbeats_all(3000));
     }
 
-    Serial.print("Enabling closed loop control...\n");
+    Serial.print("Enabling ODrive closed loop control...\n");
     set_closed_loop_control(o_left);
     set_closed_loop_control(o_right);
-#endif
+
+    Serial.print("Creating Differential Drive...\n");
+    ddrive_config_t ddrive_config = {
+        .track_width = TRACK_WIDTH,
+        .wheel_radius = WHEEL_RADIUS,
+    };
+    ddrive_init(ddrive_config, ddrive);
 
     Serial.print("Creating state machine...\n");
     state_machine_config_t state_machine_config = {
@@ -215,6 +223,8 @@ void loop()
     odrive_can_refresh_events();
 
     // state_machine_loop(state_machine);
+
+    ddrive_test();
 }
 
 /* STATE FUNCTIONS */
@@ -264,7 +274,7 @@ void micro_start_cb()
     Serial.printf("Micro start sensor switched to: %d\n", match_started);
 }
 
-void odrive_error_cb(odrive_t *odrive)
+void odrive_error_cb(const odrive_t *odrive)
 {
     if (odrive->latest_error.Active_Errors & ODriveError::ODRIVE_ERROR_INITIALIZING)
         return; // ignore this error
@@ -278,6 +288,21 @@ void odrive_error_cb(odrive_t *odrive)
 
 /* TESTS */
 
+void ddrive_test()
+{
+    // generate a circle for the target angular velocity and keep linear velocity constant
+    float linear_velocity = 0.1f;                                       // m/s
+    float angular_velocity = 0.25f * sin(2.f * PI * millis() / 1000.f); // rad/s
+
+    ddrive_set_target_velocity(ddrive, linear_velocity, angular_velocity);
+
+    float left_wheel_velocity = get_left_wheel_angular_velocity(ddrive);
+    float right_wheel_velocity = get_right_wheel_angular_velocity(ddrive);
+
+    set_velocity(o_left, left_wheel_velocity);
+    set_velocity(o_right, right_wheel_velocity);
+}
+
 void odrive_test()
 {
     float ol_p = get_position(o_left);
@@ -288,8 +313,10 @@ void odrive_test()
 
     // Serial.printf("ODrive(%d) position: %f, velocity: %f\n", o_right->node_id, or_p, or_v);
 
-    set_velocity(o_left, -or_p, 0.f);
-    // set_velocity(o_right, sin((double)millis()) * MINIMUM_NON_SHAKE_SPEED, 0.f);
+    float speed = 50.f * sin(2.f * PI * millis() / 1000.f);
+
+    set_velocity(o_left, speed, 0.f);
+    set_velocity(o_right, -speed, 0.f);
 }
 
 void sensors_test()

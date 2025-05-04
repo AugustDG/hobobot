@@ -10,7 +10,7 @@
 
 struct odrive_t;
 
-typedef void (*odrive_error_callback_t)(odrive_t *odrive);
+typedef void (*odrive_error_callback_t)(const odrive_t *odrive);
 
 enum odrive_controller_mode_change_t : uint8_t
 {
