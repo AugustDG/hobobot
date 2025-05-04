@@ -18,12 +18,12 @@ void ddrive_set_target_velocity(ddrive_t &drive, float linear_velocity, float an
     drive.target_angular_velocity = angular_velocity;
 
     // calculate wheel velocities
-    drive.linear_wheel_velocities[0] = linear_velocity - (angular_velocity * drive.track_width / 2.f);
-    drive.linear_wheel_velocities[1] = linear_velocity + (angular_velocity * drive.track_width / 2.f);
+    drive.linear_wheel_velocities[0] = linear_velocity - (angular_velocity * drive.track_width / 2.f) * drive.gear_ratio;
+    drive.linear_wheel_velocities[1] = linear_velocity + (angular_velocity * drive.track_width / 2.f) * drive.gear_ratio;
 
     // calculate angular velocities
-    drive.angular_wheel_velocities[0] = linear_velocity / drive.wheel_radius;
-    drive.angular_wheel_velocities[1] = angular_velocity / drive.wheel_radius;
+    drive.angular_wheel_velocities[0] = (linear_velocity / drive.wheel_radius) * drive.gear_ratio;
+    drive.angular_wheel_velocities[1] = (angular_velocity / drive.wheel_radius) * drive.gear_ratio;
 }
 
 float get_left_wheel_angular_velocity(const ddrive_t &drive)

@@ -189,6 +189,7 @@ void setup()
     ddrive_config_t ddrive_config = {
         .track_width = TRACK_WIDTH,
         .wheel_radius = WHEEL_RADIUS,
+        .gear_ratio = GEAR_RATIO,
     };
     ddrive_init(ddrive_config, ddrive);
 

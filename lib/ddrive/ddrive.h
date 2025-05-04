@@ -4,14 +4,16 @@
 
 struct ddrive_config_t
 {
-    float track_width;  // in meters
-    float wheel_radius; // in meters
+    float track_width;      // in meters
+    float wheel_radius;     // in meters
+    float gear_ratio = 1.f; // reduction ratio of motor speed to wheel speed
 };
 
 struct ddrive_t
 {
     float track_width;  // in meters
     float wheel_radius; // in meters
+    float gear_ratio;   // reduction ratio of motor speed to wheel speed
 
     float target_linear_velocity;  // in meters per second
     float target_angular_velocity; // in meters per second
