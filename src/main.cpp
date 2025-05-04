@@ -72,9 +72,6 @@ state_machine_t state_machine;
 
 /* VOLATILES */
 
-volatile bool match_started = true;
-volatile bool odrive_errored = false;
-
 /* FUNCTION DEFINITIONS */
 
 void setup()
@@ -272,7 +269,8 @@ void stopped()
 
 void micro_start_cb()
 {
-    match_started = micro_start.read();
+    bool match_started = micro_start.read();
+    state_machine.set_state(match_started ? SEARCHING_FOR_OPPONENT : STOPPED);
 
     Serial.printf("Micro start sensor switched to: %d\n", match_started);
 }
@@ -281,8 +279,6 @@ void odrive_error_cb(const odrive_t *odrive)
 {
     if (odrive->latest_error.Active_Errors & ODriveError::ODRIVE_ERROR_INITIALIZING)
         return; // ignore this error
-
-    odrive_errored = true;
 
     Serial.printf("ODrive(%d) error: %d, disarm reason: %d\n", odrive->node_id, odrive->latest_error.Active_Errors, odrive->latest_error.Disarm_Reason);
 
