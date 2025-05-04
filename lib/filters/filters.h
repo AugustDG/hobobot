@@ -10,14 +10,17 @@ struct iir_moving_average_config_t
     float initial_value;
 };
 
-struct iir_moving_average_t
+class iir_moving_average_t
 {
+public:
     float alpha;
     float avg_value;
-};
 
-void iir_moving_average_init(const iir_moving_average_config_t &config, iir_moving_average_t &filter);
-void iir_moving_average_update(iir_moving_average_t &filter, float new_value);
+    iir_moving_average_t() = default;
+    iir_moving_average_t(const iir_moving_average_config_t &config) : alpha(config.alpha), avg_value(config.initial_value) {}
+
+    void update(float new_value);
+};
 
 /* Debounce */
 
@@ -27,14 +30,20 @@ struct debounce_config_t
     bool initial_value = false;
 };
 
-struct debounce_t
+class debounce_t
 {
-    uint32_t last_time;
+public:
     bool last_value;
     bool stable_value;
 
     uint32_t debounce_time;
-};
 
-void debounce_init(const debounce_config_t &config, debounce_t &filter);
-void debounce_update(debounce_t &filter, bool new_value);
+private:
+    uint32_t last_time;
+
+public:
+    debounce_t() = default;
+    debounce_t(const debounce_config_t &config) : last_value(config.initial_value), stable_value(config.initial_value), debounce_time(config.debounce_time), last_time(millis()) {}
+
+    void update(bool new_value);
+};

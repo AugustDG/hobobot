@@ -4,9 +4,98 @@
 #include <ODriveFlexCAN.hpp>
 #include "utils.hpp"
 
+void odrive_can_refresh_events()
+{
+    refresh_can_events();
+}
+
+bool odrive_can_process_message()
+{
+    odrive_can_refresh_events();
+
+    CAN_message_t msg;
+    bool has_msg = read_can_message(msg); // process the message
+
+    if (has_msg)
+        odrive_can_cb(msg); // call the ODrive callback
+
+    return has_msg;
+}
+
+bool wait_for_heartbeat(const std::vector<odrive_t *> &odrives_to_check, uint32_t timeout)
+{
+    elapsedMillis elapsed_time;
+    auto odrives_left = odrives_to_check;
+
+    while (elapsed_time < timeout && !odrives_left.empty())
+    {
+        odrive_can_refresh_events();
+        delay(HEARTBEAT_WAIT_TIME);
+
+        for (size_t i = 0; i < odrives_left.size(); i++)
+        {
+            if (odrives_left[i]->updated_heartbeat)
+            {
+                Serial.printf("ODrive(%d) heartbeat received\n", odrives_left[i]->node_id);
+
+                odrives_left.erase(odrives_left.begin() + i);
+            }
+        }
+    }
+
+    return odrives_left.empty();
+}
+
+bool wait_for_heartbeat_all(uint32_t timeout)
+{
+    return wait_for_heartbeat(odrives, timeout);
+}
+
+void stop_all()
+{
+    for (auto &&odrive : odrives)
+        odrive->stop();
+}
+
+void set_position_all(const std::vector<float> &positions, const std::vector<float> &ff_velocities, const std::vector<float> &ff_torques)
+{
+    if (positions.size() != odrives.size() || ff_velocities.size() != odrives.size() || ff_torques.size() != odrives.size())
+    {
+        Serial.println("Error: size of positions, ff_velocities, and ff_torques must match the number of ODrives.");
+        return;
+    }
+
+    for (size_t i = 0; i < odrives.size(); i++)
+        odrives[i]->set_position(positions[i], ff_velocities[i], ff_torques[i]);
+}
+
+void set_velocity_all(const std::vector<float> &velocities, const std::vector<float> &ff_torques)
+{
+    if (velocities.size() != odrives.size() || ff_torques.size() != odrives.size())
+    {
+        Serial.println("Error: size of velocities and ff_torques must match the number of ODrives.");
+        return;
+    }
+
+    for (size_t i = 0; i < odrives.size(); i++)
+        odrives[i]->set_velocity(velocities[i], ff_torques[i]);
+}
+
+void set_torque_control_all(const std::vector<float> &torques)
+{
+    if (torques.size() != odrives.size())
+    {
+        Serial.println("Error: size of torques must match the number of ODrives.");
+        return;
+    }
+
+    for (size_t i = 0; i < odrives.size(); i++)
+        odrives[i]->set_torque(torques[i]);
+}
+
 void odrive_can_cb(const CAN_message_t &msg)
 {
-    for (auto odrive : odrives)
+    for (auto &&odrive : odrives)
         onReceive(msg, *odrive->odrive_can);
 }
 
@@ -55,116 +144,68 @@ void on_error(Get_Error_msg_t &msg, void *odrive)
         odrive_ptr->error_callback(odrive_ptr);
 }
 
-void odrive_init(const odrive_config_t &config, odrive_t &odrive)
+odrive_t::odrive_t(const odrive_config_t &config)
 {
-    odrive.node_id = static_cast<odrive_node_id_t>(config.node_id);
-    odrive.error_callback = config.error_callback;
+    node_id = static_cast<odrive_node_id_t>(config.node_id);
+    error_callback = config.error_callback;
 
-    odrive.odrive_can = new ODriveCAN(wrap_can_intf(interface), config.node_id);
+    odrive_can = new ODriveCAN(wrap_can_intf(interface), config.node_id);
 
-    odrive.odrive_can->onFeedback(on_feedback, &odrive);
-    odrive.odrive_can->onStatus(on_heartbeat, &odrive);
-    odrive.odrive_can->onBusVI(on_bus_vi, &odrive);
-    odrive.odrive_can->onTorques(on_torques, &odrive);
-    odrive.odrive_can->onCurrents(on_currents, &odrive);
-    odrive.odrive_can->onError(on_error, &odrive);
+    odrive_can->onFeedback(on_feedback, this);
+    odrive_can->onStatus(on_heartbeat, this);
+    odrive_can->onBusVI(on_bus_vi, this);
+    odrive_can->onTorques(on_torques, this);
+    odrive_can->onCurrents(on_currents, this);
+    odrive_can->onError(on_error, this);
 
     // store a copy of the pointer to the ODrive
-    odrives.push_back(&odrive);
+    odrives.push_back(this);
 }
 
-bool wait_for_heartbeats_all(uint32_t timeout)
-{
-    return wait_for_heartbeats(odrives, timeout);
-}
-
-bool wait_for_heartbeats(const std::vector<odrive_t *> &odrives_to_check, uint32_t timeout)
-{
-    elapsedMillis elapsed_time;
-    auto odrives_left = odrives_to_check;
-
-    while (elapsed_time < timeout && !odrives_left.empty())
-    {
-        odrive_can_refresh_events();
-        delay(HEARTBEAT_WAIT_TIME);
-
-        for (size_t i = 0; i < odrives_left.size(); i++)
-        {
-            if (odrives_left[i]->updated_heartbeat)
-            {
-                Serial.printf("ODrive(%d) heartbeat received\n", odrives_left[i]->node_id);
-
-                odrives_left.erase(odrives_left.begin() + i);
-            }
-        }
-    }
-
-    return odrives_left.empty();
-}
-
-void odrive_can_refresh_events()
-{
-    refresh_can_events();
-}
-
-bool odrive_can_process_message()
-{
-    odrive_can_refresh_events();
-
-    CAN_message_t msg;
-    bool has_msg = read_can_message(msg); // process the message
-
-    if (has_msg)
-        odrive_can_cb(msg); // call the ODrive callback
-
-    return has_msg;
-}
-
-void save_configuration(const odrive_t &odrive)
+void odrive_t::save_configuration()
 {
     Reboot_msg_t msg;
     msg.Action = ODriveCAN::ResetAction::SaveConfiguration;
-    odrive.odrive_can->send(msg);
+    odrive_can->send(msg);
 }
 
-void reboot(const odrive_t &odrive)
+void odrive_t::reboot()
 {
     Reboot_msg_t msg;
     msg.Action = ODriveCAN::ResetAction::Reboot;
-    odrive.odrive_can->send(msg);
+    odrive_can->send(msg);
 }
 
-void set_idle(odrive_t &odrive)
+void odrive_t::set_idle()
 {
-    set_state(odrive, ODriveAxisState::AXIS_STATE_IDLE);
+    set_state(ODriveAxisState::AXIS_STATE_IDLE);
 }
 
-void set_closed_loop_control(odrive_t &odrive)
+void odrive_t::set_closed_loop_control()
 {
-    set_state(odrive, ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
+    set_state(ODriveAxisState::AXIS_STATE_CLOSED_LOOP_CONTROL);
 }
 
-void set_position_control(odrive_t &odrive)
+void odrive_t::set_position_control()
 {
-    set_controller_mode(odrive, ODriveControlMode::CONTROL_MODE_POSITION_CONTROL, ODriveInputMode::INPUT_MODE_PASSTHROUGH);
+    set_controller_mode(ODriveControlMode::CONTROL_MODE_POSITION_CONTROL, ODriveInputMode::INPUT_MODE_PASSTHROUGH);
 }
 
-void set_velocity_control(odrive_t &odrive)
+void odrive_t::set_velocity_control()
 {
-    set_controller_mode(odrive, ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL, ODriveInputMode::INPUT_MODE_PASSTHROUGH);
+    set_controller_mode(ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL, ODriveInputMode::INPUT_MODE_PASSTHROUGH);
 }
 
-void set_torque_control(odrive_t &odrive)
+void odrive_t::set_torque_control()
 {
-    set_controller_mode(odrive, ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL, ODriveInputMode::INPUT_MODE_PASSTHROUGH);
+    set_controller_mode(ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL, ODriveInputMode::INPUT_MODE_PASSTHROUGH);
 }
 
-void set_state(odrive_t &odrive, ODriveAxisState requested_state)
+void odrive_t::set_state(ODriveAxisState requested_state)
 {
-    ODriveCAN *odrive_can = odrive.odrive_can;
-    odrive.updated_heartbeat = false; // because we need to wait for a new heartbeat, the current one is old
+    updated_heartbeat = false; // because we need to wait for a new heartbeat, the current one is old
 
-    while (odrive.latest_heartbeat.Axis_State != requested_state)
+    while (latest_heartbeat.Axis_State != requested_state)
     {
         odrive_can->clearErrors();
         delay(CLEAR_ERRORS_DELAY);
@@ -178,102 +219,74 @@ void set_state(odrive_t &odrive, ODriveAxisState requested_state)
     }
 }
 
-void set_controller_mode(odrive_t &odrive, ODriveControlMode control_mode, ODriveInputMode input_mode)
+void odrive_t::set_controller_mode(ODriveControlMode control_mode, ODriveInputMode input_mode)
 {
-    ODriveCAN *odrive_can = odrive.odrive_can;
     odrive_can->setControllerMode(control_mode, input_mode);
 
-    odrive.control_mode = control_mode;
+    control_mode = control_mode;
 
-    save_configuration(odrive);
+    save_configuration();
 }
 
-void stop(odrive_t &odrive)
+void odrive_t::stop()
 {
-    if (odrive.control_mode == ODriveControlMode::CONTROL_MODE_POSITION_CONTROL)
-        set_position(odrive, odrive.latest_feedback.Pos_Estimate, 0.f, 0.f);
-    else if (odrive.control_mode == ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL)
-        set_velocity(odrive, 0.f, 0.f);
-    else if (odrive.control_mode == ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL)
-        set_torque(odrive, 0.f);
+    if (control_mode == ODriveControlMode::CONTROL_MODE_POSITION_CONTROL)
+        set_position(latest_feedback.Pos_Estimate, 0.f, 0.f);
+    else if (control_mode == ODriveControlMode::CONTROL_MODE_VELOCITY_CONTROL)
+        set_velocity(0.f, 0.f);
+    else if (control_mode == ODriveControlMode::CONTROL_MODE_TORQUE_CONTROL)
+        set_torque(0.f);
 
-    set_idle(odrive);
+    set_idle();
 }
 
-void stop_all()
+void odrive_t::set_position(float position, float ff_velocity, float ff_torque)
 {
-    for (size_t i = 0; i < odrives.size(); i++)
-        stop(*odrives[i]);
-}
-
-void set_position(odrive_t &odrive, float position, float ff_velocity, float ff_torque)
-{
-    ODriveCAN *odrive_can = odrive.odrive_can;
-    odrive.updated_feedback = false; // since we're moving the motor, whatever we have now is old
+    updated_feedback = false; // since we're moving the motor, whatever we have now is old
 
     odrive_can->setPosition(position, ff_velocity, ff_torque);
 }
 
-void set_velocity(odrive_t &odrive, float velocity, float ff_torque)
+void odrive_t::set_velocity(float velocity, float ff_torque)
 {
-    ODriveCAN *odrive_can = odrive.odrive_can;
-    odrive.updated_feedback = false; // since we're moving the motor, whatever we have now is old
+    updated_feedback = false; // since we're moving the motor, whatever we have now is old
 
     odrive_can->setVelocity(velocity, ff_torque);
 }
 
-void set_torque(odrive_t &odrive, float torque)
+void odrive_t::set_torque(float torque)
 {
-    ODriveCAN *odrive_can = odrive.odrive_can;
-    odrive.updated_feedback = false; // since we're moving the motor, whatever we have now is old
+    updated_feedback = false; // since we're moving the motor, whatever we have now is old
 
     odrive_can->setTorque(torque);
 }
 
-void set_position_all(const std::vector<float> &positions, const std::vector<float> &ff_velocities, const std::vector<float> &ff_torques)
+float odrive_t::get_position() const
 {
-    for (size_t i = 0; i < odrives.size(); i++)
-        set_position(*odrives[i], positions[i], ff_velocities[i], ff_torques[i]);
+    return latest_feedback.Pos_Estimate;
 }
 
-void set_velocity_all(const std::vector<float> &velocities, const std::vector<float> &ff_torques)
+float odrive_t::get_velocity() const
 {
-    for (size_t i = 0; i < odrives.size(); i++)
-        set_velocity(*odrives[i], velocities[i], ff_torques[i]);
+    return latest_feedback.Vel_Estimate;
 }
 
-void set_torque_control_all(const std::vector<float> &torques)
+float odrive_t::get_torque() const
 {
-    for (size_t i = 0; i < odrives.size(); i++)
-        set_torque(*odrives[i], torques[i]);
+    return latest_torques.Torque_Estimate;
 }
 
-float get_position(const odrive_t &odrive)
+float odrive_t::get_current() const
 {
-    return odrive.latest_feedback.Pos_Estimate;
+    return latest_currents.Iq_Measured;
 }
 
-float get_velocity(const odrive_t &odrive)
+float odrive_t::get_bus_voltage() const
 {
-    return odrive.latest_feedback.Vel_Estimate;
+    return latest_bus_voltage_current.Bus_Voltage;
 }
 
-float get_torque(const odrive_t &odrive)
+float odrive_t::get_bus_current() const
 {
-    return odrive.latest_torques.Torque_Estimate;
-}
-
-float get_current(const odrive_t &odrive)
-{
-    return odrive.latest_currents.Iq_Measured;
-}
-
-float get_bus_voltage(const odrive_t &odrive)
-{
-    return odrive.latest_bus_voltage_current.Bus_Voltage;
-}
-
-float get_bus_current(const odrive_t &odrive)
-{
-    return odrive.latest_bus_voltage_current.Bus_Current;
+    return latest_bus_voltage_current.Bus_Current;
 }

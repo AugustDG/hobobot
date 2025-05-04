@@ -27,24 +27,27 @@ struct state_machine_config_t
     state_action_map_t state_actions;
 
     bool should_log = false;
+
+    bool verify() const;
 };
 
-struct state_machine_t
+class state_machine_t
 {
+public:
     uint32_t current_state;
+
+private:
     state_action_t current_state_action;
 
     transition_graph_t transitions;
     state_action_map_t state_actions;
 
     bool should_log = false;
+
+public:
+    state_machine_t() = default;
+    state_machine_t(const state_machine_config_t &config);
+
+    void loop();
+    void set_state(uint32_t new_state);
 };
-
-void state_machine_init(const state_machine_config_t &config, state_machine_t &state_machine);
-
-void state_machine_loop(const state_machine_t &state_machine);
-bool verify_state_machine_config(const state_machine_config_t &config);
-
-// setters
-
-void set_state(state_machine_t &state_machine, uint32_t new_state);

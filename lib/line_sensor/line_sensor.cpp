@@ -1,35 +1,34 @@
 #include "line_sensor.h"
 #include "utils.hpp"
 
-void line_sensor_init(const line_sensor_config_t &config, line_sensor_t &sensor)
-
+line_sensor_t::line_sensor_t(const line_sensor_config_t &config)
 {
-    sensor.pin = config.pin;
-    sensor.interrupt = config.callback != nullptr;
-    sensor.filtered = config.moving_average_config != nullptr;
+    pin = config.pin;
+    interrupt = config.callback != nullptr;
+    filtered = config.moving_average_config != nullptr;
 
-    pinMode(sensor.pin, INPUT);
+    pinMode(pin, INPUT);
 
-    if (sensor.interrupt)
-        attachInterrupt(sensor.pin, config.callback, CHANGE);
+    if (interrupt)
+        attachInterrupt(pin, config.callback, CHANGE);
 
-    if (sensor.filtered)
-        iir_moving_average_init(*config.moving_average_config, sensor.moving_average_filter);
+    if (filtered)
+        moving_average_filter = iir_moving_average_t(*config.moving_average_config);
 }
 
-int line_sensor_read(line_sensor_t &sensor)
+int line_sensor_t::read()
 {
-    int value = analogRead(sensor.pin);
-    if (sensor.filtered)
+    int value = analogRead(pin);
+    if (filtered)
     {
-        iir_moving_average_update(sensor.moving_average_filter, value);
-        return sensor.moving_average_filter.avg_value;
+        moving_average_filter.update(value);
+        return moving_average_filter.avg_value;
     }
 
     return value;
 }
 
-bool line_sensor_read_thresholded(line_sensor_t &sensor)
+bool line_sensor_t::read_thresholded()
 {
-    return line_sensor_read(sensor) > sensor.threshold;
+    return read() > threshold;
 }

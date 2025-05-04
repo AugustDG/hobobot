@@ -96,7 +96,7 @@ void setup()
             .debounce_config = &debounce_config,
         };
 
-        ir_sensor_init(config, ir_sensors[i]);
+        ir_sensors[i] = ir_sensor_t(config);
     }
 
     iir_moving_average_config_t moving_average_config = {
@@ -113,7 +113,7 @@ void setup()
             .moving_average_config = &moving_average_config,
         };
 
-        line_sensor_init(config, line_sensors[i]);
+        line_sensors[i] = line_sensor_t(config);
     }
 
     Serial.printf("Creating micro start sensor\n");
@@ -121,7 +121,7 @@ void setup()
         .pin = MICRO_START_PIN,
         .callback = micro_start_cb,
     };
-    micro_start_init(micro_start_config, micro_start);
+    micro_start = micro_start_t(micro_start_config);
 
     Serial.print("Creating ODrives\n");
 
@@ -140,32 +140,32 @@ void setup()
         .error_callback = odrive_error_cb,
     };
 
-    odrive_init(o_left_config, o_left);
-    odrive_init(o_right_config, o_right);
+    o_left = odrive_t(o_left_config);
+    o_right = odrive_t(o_right_config);
 
     do
         Serial.print("Waiting for ODrive heartbeats...\n");
-    while (!wait_for_heartbeats_all(3000));
+    while (!wait_for_heartbeat_all(3000));
 
-    set_idle(o_left);
-    set_idle(o_right);
+    o_left.set_idle();
+    o_right.set_idle();
 
     switch (controller_mode_change)
     {
     case POSITION_CONTROL:
         Serial.print("Setting ODrive to position control...\n");
-        set_position_control(o_left);
-        set_position_control(o_right);
+        o_left.set_position_control();
+        o_right.set_position_control();
         break;
     case VELOCITY_CONTROL:
         Serial.print("Setting ODrive to velocity control...\n");
-        set_velocity_control(o_left);
-        set_velocity_control(o_right);
+        o_left.set_velocity_control();
+        o_right.set_velocity_control();
         break;
     case TORQUE_CONTROL:
         Serial.print("Setting ODrive to torque control...\n");
-        set_torque_control(o_left);
-        set_torque_control(o_right);
+        o_left.set_torque_control();
+        o_right.set_torque_control();
         break;
     case NO_MODE_CHANGE:
     default:
@@ -178,12 +178,12 @@ void setup()
         // we wait again, because the ODrive will reboot after setting the control mode
         do
             Serial.print("Waiting for ODrive heartbeats...\n");
-        while (!wait_for_heartbeats_all(3000));
+        while (!wait_for_heartbeat_all(3000));
     }
 
     Serial.print("Enabling ODrive closed loop control...\n");
-    set_closed_loop_control(o_left);
-    set_closed_loop_control(o_right);
+    o_left.set_closed_loop_control();
+    o_right.set_closed_loop_control();
 
     Serial.print("Creating Differential Drive...\n");
     ddrive_config_t ddrive_config = {
@@ -208,12 +208,12 @@ void setup()
         .should_log = true,
     };
 
-    if (!verify_state_machine_config(state_machine_config))
+    if (!state_machine_config.verify())
     {
         Serial.print("State machine config is invalid!\n");
         return;
     }
-    state_machine_init(state_machine_config, state_machine);
+    state_machine = state_machine_t(state_machine_config);
 
     Serial.print("Start up complete!\n");
 }
@@ -233,44 +233,44 @@ void loop()
 void waiting_for_start()
 {
     Serial.print("Match started!\n");
-    set_state(state_machine, SEARCHING_FOR_OPPONENT);
+    state_machine.set_state(SEARCHING_FOR_OPPONENT);
 }
 
 void searching_for_opponent()
 {
     Serial.print("Searching for opponent...\n");
-    set_state(state_machine, MOVING_TO_OPPONENT);
+    state_machine.set_state(MOVING_TO_OPPONENT);
 }
 
 void moving_to_opponent()
 {
     Serial.print("Moving to opponent...\n");
-    set_state(state_machine, AVOIDING_BORDER);
+    state_machine.set_state(AVOIDING_BORDER);
 }
 
 void avoiding_opponent()
 {
     Serial.print("Avoiding opponent...\n");
-    set_state(state_machine, AVOIDING_BORDER);
+    state_machine.set_state(AVOIDING_BORDER);
 }
 
 void avoiding_border()
 {
     Serial.print("Avoiding border...\n");
-    set_state(state_machine, STOPPED);
+    state_machine.set_state(STOPPED);
 }
 
 void stopped()
 {
     Serial.print("Stopped...\n");
-    set_state(state_machine, WAITING_FOR_START);
+    state_machine.set_state(WAITING_FOR_START);
 }
 
 /* CALLBACKS */
 
 void micro_start_cb()
 {
-    match_started = micro_start_read(micro_start);
+    match_started = micro_start.read();
 
     Serial.printf("Micro start sensor switched to: %d\n", match_started);
 }
@@ -300,24 +300,29 @@ void ddrive_test()
     float left_wheel_velocity = get_left_wheel_angular_velocity(ddrive);
     float right_wheel_velocity = get_right_wheel_angular_velocity(ddrive);
 
-    set_velocity(o_left, left_wheel_velocity);
-    set_velocity(o_right, right_wheel_velocity);
+    o_left.set_velocity(left_wheel_velocity);
+    o_right.set_velocity(right_wheel_velocity);
 }
 
 void odrive_test()
 {
-    float ol_p = get_position(o_left);
-    float ol_v = get_velocity(o_left);
+    float ol_p = o_left.get_position();
+    float ol_v = o_left.get_velocity();
 
-    float or_p = get_position(o_right);
-    float or_v = get_velocity(o_right);
+    float ol_t = o_left.get_torque();
+    float ol_i = o_left.get_current();
 
-    // Serial.printf("ODrive(%d) position: %f, velocity: %f\n", o_right->node_id, or_p, or_v);
+    float ol_bc = o_left.get_bus_current();
+    float ol_bv = o_left.get_bus_voltage();
+
+    Serial.printf("ODrive(%d) torque: %f, current: %f\n", o_left.node_id, ol_t, ol_i);
+    Serial.printf("ODrive(%d) position: %f, velocity: %f\n", o_left.node_id, ol_p, ol_v);
+    Serial.printf("ODrive(%d) bus current: %f, bus voltage: %f\n", o_left.node_id, ol_bc, ol_bv);
 
     float speed = 50.f * sin(2.f * PI * millis() / 1000.f);
 
-    set_velocity(o_left, speed, 0.f);
-    set_velocity(o_right, -speed, 0.f);
+    o_left.set_velocity(speed, 0.f);
+    o_right.set_velocity(-speed, 0.f);
 }
 
 void sensors_test()
@@ -330,11 +335,11 @@ void sensors_test()
 
     // read IR sensors
     for (size_t i = 0; i < NUM_IR_SENSORS; i++)
-        ir_values[i] = ir_sensor_read(ir_sensors[i]);
+        ir_values[i] = ir_sensors[i].read();
 
     // read line sensors
     for (size_t i = 0; i < NUM_LINE_SENSORS; i++)
-        line_values[i] = line_sensor_read(line_sensors[i]);
+        line_values[i] = line_sensors[i].read();
 
     Serial.printf("Sensor Values: ");
     for (size_t i = 0; i < NUM_IR_SENSORS; i++)

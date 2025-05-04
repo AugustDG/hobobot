@@ -1,18 +1,18 @@
 #include "micro_start.h"
 #include "utils.hpp"
 
-void micro_start_init(const micro_start_config &config, micro_start_t &sensor)
+micro_start_t::micro_start_t(const micro_start_config &config)
 {
-    sensor.pin = config.pin;
-    sensor.interrupt = config.callback != nullptr;
+    pin = config.pin;
+    interrupt = config.callback != nullptr;
 
-    pinMode(sensor.pin, INPUT_PULLDOWN);
+    pinMode(pin, INPUT_PULLDOWN);
 
-    if (sensor.interrupt)
-        attachInterrupt(sensor.pin, config.callback, CHANGE);
+    if (interrupt)
+        attachInterrupt(pin, config.callback, CHANGE);
 }
 
-bool micro_start_read(const micro_start_t &sensor)
+bool micro_start_t::read()
 {
-    return (digitalRead(sensor.pin) == HIGH);
+    return digitalRead(pin) == HIGH;
 }

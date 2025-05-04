@@ -6,15 +6,6 @@
 
 typedef void (*ir_sensor_callback)();
 
-struct ir_sensor_t
-{
-    u_int16_t pin;
-    bool interrupt;
-
-    bool filtered;
-    debounce_t debounce_filter;
-};
-
 struct ir_sensor_config_t
 {
     u_int16_t pin;
@@ -23,6 +14,17 @@ struct ir_sensor_config_t
     debounce_config_t *debounce_config = nullptr;
 };
 
-void ir_sensor_init(const ir_sensor_config_t &config, ir_sensor_t &sensor);
+class ir_sensor_t
+{
+public:
+    u_int16_t pin;
+    bool interrupt;
 
-bool ir_sensor_read(ir_sensor_t &sensor);
+    bool filtered;
+    debounce_t debounce_filter;
+
+    ir_sensor_t() = default;
+    ir_sensor_t(const ir_sensor_config_t &config);
+
+    bool read();
+};
