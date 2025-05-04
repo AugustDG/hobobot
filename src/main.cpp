@@ -27,6 +27,8 @@ void avoiding_opponent();
 void avoiding_border();
 void stopped();
 
+void set_vels_from_ddrive_targets(float linear_vel, float angular_vel);
+
 /* CONSTANTS */
 
 constexpr odrive_controller_mode_change_t controller_mode_change = NO_MODE_CHANGE;
@@ -80,7 +82,7 @@ void setup()
     Serial.begin(115200);
     delay(200);
 
-    Serial.print("Starting up...\n");
+    Serial.print(F("Starting up...\n"));
 
     debounce_config_t debounce_config = {
         .debounce_time = 50,
@@ -116,14 +118,14 @@ void setup()
         line_sensors[i] = line_sensor_t(config);
     }
 
-    Serial.printf("Creating micro start sensor\n");
+    Serial.printf(F("Creating micro start sensor\n"));
     micro_start_config micro_start_config = {
         .pin = MICRO_START_PIN,
         .callback = micro_start_cb,
     };
     micro_start = micro_start_t(micro_start_config);
 
-    Serial.print("Creating ODrives\n");
+    Serial.print(F("Creating ODrives\n"));
 
     can_config_t can_config = {
         .baudrate = 500000,
@@ -144,7 +146,7 @@ void setup()
     o_right = odrive_t(o_right_config);
 
     do
-        Serial.print("Waiting for ODrive heartbeats...\n");
+        Serial.print(F("Waiting for ODrive heartbeats...\n"));
     while (!wait_for_heartbeat_all(3000));
 
     o_left.set_idle();
@@ -153,23 +155,23 @@ void setup()
     switch (controller_mode_change)
     {
     case POSITION_CONTROL:
-        Serial.print("Setting ODrive to position control...\n");
+        Serial.print(F("Setting ODrive to position control...\n"));
         o_left.set_position_control();
         o_right.set_position_control();
         break;
     case VELOCITY_CONTROL:
-        Serial.print("Setting ODrive to velocity control...\n");
+        Serial.print(F("Setting ODrive to velocity control...\n"));
         o_left.set_velocity_control();
         o_right.set_velocity_control();
         break;
     case TORQUE_CONTROL:
-        Serial.print("Setting ODrive to torque control...\n");
+        Serial.print(F("Setting ODrive to torque control...\n"));
         o_left.set_torque_control();
         o_right.set_torque_control();
         break;
     case NO_MODE_CHANGE:
     default:
-        Serial.print("No controller mode change requested...\n");
+        Serial.print(F("No controller mode change requested...\n"));
         break;
     }
 
@@ -177,23 +179,23 @@ void setup()
     {
         // we wait again, because the ODrive will reboot after setting the control mode
         do
-            Serial.print("Waiting for ODrive heartbeats...\n");
+            Serial.print(F("Waiting for ODrive heartbeats...\n"));
         while (!wait_for_heartbeat_all(3000));
     }
 
-    Serial.print("Enabling ODrive closed loop control...\n");
+    Serial.print(F("Enabling ODrive closed loop control...\n"));
     o_left.set_closed_loop_control();
     o_right.set_closed_loop_control();
 
-    Serial.print("Creating Differential Drive...\n");
+    Serial.print(F("Creating Differential Drive...\n"));
     ddrive_config_t ddrive_config = {
         .track_width = TRACK_WIDTH,
         .wheel_radius = WHEEL_RADIUS,
         .gear_ratio = GEAR_RATIO,
     };
-    ddrive_init(ddrive_config, ddrive);
+    ddrive = ddrive_t(ddrive_config);
 
-    Serial.print("Creating state machine...\n");
+    Serial.print(F("Creating state machine...\n"));
     state_machine_config_t state_machine_config = {
         .initial_state = INITIAL_STATE,
         .states = STATES,
@@ -210,12 +212,12 @@ void setup()
 
     if (!state_machine_config.verify())
     {
-        Serial.print("State machine config is invalid!\n");
+        Serial.print(F("State machine config is invalid!\n"));
         return;
     }
     state_machine = state_machine_t(state_machine_config);
 
-    Serial.print("Start up complete!\n");
+    Serial.print(F("Start up complete!\n"));
 }
 
 void loop()
@@ -295,13 +297,7 @@ void ddrive_test()
     float linear_velocity = 0.1f;                                       // m/s
     float angular_velocity = 0.25f * sin(2.f * PI * millis() / 1000.f); // rad/s
 
-    ddrive_set_target_velocity(ddrive, linear_velocity, angular_velocity);
-
-    float left_wheel_velocity = get_left_wheel_angular_velocity(ddrive);
-    float right_wheel_velocity = get_right_wheel_angular_velocity(ddrive);
-
-    o_left.set_velocity(left_wheel_velocity);
-    o_right.set_velocity(right_wheel_velocity);
+    set_vels_from_ddrive_targets(linear_velocity, angular_velocity);
 }
 
 void odrive_test()
@@ -350,4 +346,18 @@ void sensors_test()
         Serial.printf("%d ", line_values[i]);
 
     Serial.printf("\n");
+}
+
+/* UTILITIES */
+void set_vels_from_ddrive_targets(float linear_vel, float angular_vel)
+{
+    ddrive.set_target_vels(linear_vel, angular_vel);
+
+    // get the left and right wheel velocities from the differential drive
+    float left_wheel_velocity = ddrive.get_left_angular_vel();
+    float right_wheel_velocity = ddrive.get_right_angular_vel();
+
+    // set the ODrive velocities based on the differential drive velocities
+    o_left.set_velocity(left_wheel_velocity);
+    o_right.set_velocity(right_wheel_velocity);
 }
