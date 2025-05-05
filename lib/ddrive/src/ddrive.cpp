@@ -1,4 +1,4 @@
-#include "ddrive.h"
+#include "hb_ddrive/ddrive.h"
 
 ddrive_t::ddrive_t(const ddrive_config_t &config)
 {
@@ -12,7 +12,7 @@ ddrive_t::ddrive_t(const ddrive_config_t &config)
     angular_wheel_velocities.fill(0.f);
 }
 
-void ddrive_t::set_target_vels(float linear_velocity, float angular_velocity)
+void ddrive_t::update(float linear_velocity, float angular_velocity)
 {
     target_linear_velocity = linear_velocity;
     target_angular_velocity = angular_velocity;

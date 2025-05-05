@@ -4,9 +4,11 @@
 #include "ir_sensor.h"
 #include "line_sensor.h"
 #include "micro_start.h"
-#include "ddrive.h"
-#include "odrive.h"
+#include "hb_ddrive/ddrive.h"
+#include "hb_odrive/odrive.h"
+#include "hb_ddrive/motion_controller.h"
 #include "state_machine.h"
+#include "time_keeper.hpp"
 #include "utils.hpp"
 #include "types.h"
 #include "constants.h"
@@ -27,7 +29,8 @@ void avoiding_opponent();
 void avoiding_border();
 void stopped();
 
-void set_vels_from_ddrive_targets(float linear_vel, float angular_vel);
+void set_wheel_vels_from_ddrive_targets(float linear_vel, float angular_vel);
+void set_wheel_vels_from_mc_targets();
 
 /* CONSTANTS */
 
@@ -67,8 +70,10 @@ micro_start_t micro_start;
 odrive_t o_left;
 odrive_t o_right;
 ddrive_t ddrive;
+motion_controller_t motion_controller;
 
 state_machine_t state_machine;
+time_keeper_t time_keeper;
 
 /* VOLATILES */
 
@@ -192,6 +197,21 @@ void setup()
     };
     ddrive = ddrive_t(ddrive_config);
 
+    Serial.print(F("Creating motion controller...\n"));
+    motion_controller_config_t motion_controller_config = {
+        .max_linear_vel = MAX_LINEAR_VEL,
+        .max_angular_vel = MAX_ANGULAR_VEL,
+        .pose_alpha = POSE_ALPHA,
+        .default_linear_gain = DEFAULT_MC_LINEAR_GAIN,
+        .default_angular_gain = DEFAULT_MC_ANGULAR_GAIN,
+        .default_theta_gain = DEFAULT_MC_THETA_GAIN,
+        .ddrive = &ddrive,
+        .imu = nullptr,
+    };
+    motion_controller = motion_controller_t(motion_controller_config);
+    motion_controller.set_initial_pose(0.f, 0.f, 0.f);
+    motion_controller.set_goal(0.f, 0.f, 0.f);
+
     Serial.print(F("Creating state machine...\n"));
     state_machine_config_t state_machine_config = {
         .initial_state = INITIAL_STATE,
@@ -214,6 +234,9 @@ void setup()
     }
     state_machine = state_machine_t(state_machine_config);
 
+    Serial.print(F("Creating time keeper...\n"));
+    time_keeper = time_keeper_t();
+
     Serial.print(F("Start up complete!\n"));
 }
 
@@ -222,9 +245,10 @@ void loop()
     // necessary to process any CAN messages and interrupts
     odrive_can_refresh_events();
 
-    // state_machine_loop(state_machine);
+    state_machine.loop(); // state machine processing
+    time_keeper.update();
 
-    ddrive_test();
+    set_wheel_vels_from_mc_targets();
 }
 
 /* STATE FUNCTIONS */
@@ -293,7 +317,7 @@ void ddrive_test()
     float linear_velocity = 0.1f;                                       // m/s
     float angular_velocity = 0.25f * sin(2.f * PI * millis() / 1000.f); // rad/s
 
-    set_vels_from_ddrive_targets(linear_velocity, angular_velocity);
+    set_wheel_vels_from_ddrive_targets(linear_velocity, angular_velocity);
 }
 
 void odrive_test()
@@ -345,15 +369,27 @@ void sensors_test()
 }
 
 /* UTILITIES */
-void set_vels_from_ddrive_targets(float linear_vel, float angular_vel)
+
+void set_wheel_vels_from_ddrive_targets(float linear_vel, float angular_vel)
 {
-    ddrive.set_target_vels(linear_vel, angular_vel);
+    ddrive.update(linear_vel, angular_vel);
 
     // get the left and right wheel velocities from the differential drive
-    float left_wheel_velocity = ddrive.get_left_angular_vel();
-    float right_wheel_velocity = ddrive.get_right_angular_vel();
+    float left_wheel_velocity = ddrive.get_left_angular_vel() / TWO_PI;
+    float right_wheel_velocity = ddrive.get_right_angular_vel() / TWO_PI;
 
     // set the ODrive velocities based on the differential drive velocities
+    o_left.set_velocity(left_wheel_velocity);
+    o_right.set_velocity(right_wheel_velocity);
+}
+
+void set_wheel_vels_from_mc_targets()
+{
+    // get the left and right wheel velocities from the motion controller
+    float left_wheel_velocity = motion_controller.get_target_wheel_vels()[0] / TWO_PI;
+    float right_wheel_velocity = motion_controller.get_target_wheel_vels()[1] / TWO_PI;
+
+    // set the ODrive velocities based on the motion controller velocities (which uses the differential drive)
     o_left.set_velocity(left_wheel_velocity);
     o_right.set_velocity(right_wheel_velocity);
 }

@@ -28,7 +28,7 @@ public:
     ddrive_t(const ddrive_config_t &config);
 
     // Setters
-    void set_target_vels(float linear_vel, float angular_vel);
+    void update(float linear_vel, float angular_vel);
 
     // Getters
     float get_left_angular_vel() const;

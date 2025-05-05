@@ -1,4 +1,4 @@
-#include "can.h"
+#include "hb_odrive/can.h"
 #include <utils.hpp>
 
 void can_setup(const can_config_t *config)

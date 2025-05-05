@@ -1,4 +1,4 @@
-#include "odrive.h"
+#include "hb_odrive/odrive.h"
 
 #include <ODriveCAN.h>
 #include <ODriveFlexCAN.hpp>
