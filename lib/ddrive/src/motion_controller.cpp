@@ -5,9 +5,14 @@ motion_controller_t::motion_controller_t(const motion_controller_config_t &confi
     max_linear_vel = config.max_linear_vel;   // m/s
     max_angular_vel = config.max_angular_vel; // rad/s
 
+    pose_xy_threshold = config.pose_xy_threshold;
+    pose_theta_threshold = config.pose_theta_threshold;
     pose_alpha = config.pose_alpha;
+
     default_linear_gain = config.default_linear_gain;
     default_angular_gain = config.default_angular_gain;
+
+    goal_theta_only = config.goal_theta_only;
 
     ddrive = config.ddrive;
     imu = config.imu;
@@ -56,11 +61,36 @@ void motion_controller_t::set_initial_pose(float x, float y, float theta)
     current_pose[2] = theta;
 }
 
-void motion_controller_t::set_goal(float x, float y, float theta)
+void motion_controller_t::set_goal_pose(float x, float y, float theta)
 {
     goal_pose[0] = x;
     goal_pose[1] = y;
     goal_pose[2] = theta;
+}
+
+bool motion_controller_t::reached_goal() const
+{
+    // check if the robot is at the goal pose
+    float dx = goal_pose[0] - current_pose[0];
+    float dy = goal_pose[1] - current_pose[1];
+    float dtheta = goal_pose[2] - current_pose[2];
+
+    // wrap‐to‐[-PI,PI]
+    auto wrap = [](float a)
+    {
+        while (a > M_PI)
+            a -= 2 * M_PI;
+        while (a < -M_PI)
+            a += 2 * M_PI;
+        return a;
+    };
+
+    dtheta = wrap(dtheta);
+
+    bool reached_xy = goal_theta_only || (fabs(dx) < pose_xy_threshold && fabs(dy) < pose_xy_threshold);
+    bool reached_theta = fabs(dtheta) < pose_theta_threshold;
+
+    return reached_xy && reached_theta;
 }
 
 const std::array<float, 3> &motion_controller_t::get_current_pose() const
@@ -124,7 +154,7 @@ void motion_controller_t::compute_target_vels(float linear_gain, float angular_g
     float omega_cmd = angular_gain * alpha + theta_gain * beta;
 
     // optionally normalize by max velocities
-    target_vels[0] = constrain(v_cmd, -max_linear_vel, max_linear_vel);
+    target_vels[0] = goal_theta_only ? 0.f : constrain(v_cmd, -max_linear_vel, max_linear_vel);
     target_vels[1] = constrain(omega_cmd, -max_angular_vel, max_angular_vel);
 }
 

@@ -8,10 +8,15 @@ struct motion_controller_config_t
     float max_linear_vel;  // m/s
     float max_angular_vel; // rad/s
 
-    float pose_alpha = 0.5f;          // how much to trust the algorithm vs the sensors (0.f = all sensors, 1.f = all algorithm)
+    float pose_xy_threshold = 0.05f;    // m; how close to the goal x and y we need to be to consider it reached
+    float pose_theta_threshold = 0.05f; // rad; how close to the goal theta we need to be to consider it reached
+    float pose_alpha = 0.5f;            // how much to trust the algorithm vs the sensors (0.f = all sensors, 1.f = all algorithm)
+
     float default_linear_gain = 1.f;  // how aggressive should the robot be when moving forward
     float default_angular_gain = 2.f; // how aggressive should the robot be when turning
     float default_theta_gain = -0.5f; // how smooth is the path to the final orientation
+
+    bool goal_theta_only = false; // if true, the mc will only move to the goal theta, not the goal x and y
 
     ddrive_t *ddrive = nullptr;
     imu_t *imu = nullptr;
@@ -23,10 +28,15 @@ private:
     float max_linear_vel;  // m/s
     float max_angular_vel; // rad/s
 
+    float pose_xy_threshold;    // m; how close to the goal x and y we need to be to consider it reached
+    float pose_theta_threshold; // rad; how close to the goal theta we need to be to consider it reached
     float pose_alpha;           // how much to trust the algorithm vs the sensors (0.f = all sensors, 1.f = all algorithm)
+
     float default_linear_gain;  // how aggressive should the robot be when moving forward
     float default_angular_gain; // how aggressive should the robot be when turning
     float default_theta_gain;   // how smooth is the path to the final orientation
+
+    bool goal_theta_only; // if true, the mc will only move to the goal theta, not the goal x and y
 
     ddrive_t *ddrive = nullptr;
     imu_t *imu = nullptr;
@@ -52,10 +62,11 @@ public:
     // Setters
 
     void set_initial_pose(float x, float y, float theta); // sets the initial pose of the robot, in meters and radians
-    void set_goal(float x, float y, float theta);         // sets where the robot should be at, in meters and radians
+    void set_goal_pose(float x, float y, float theta);    // sets where the robot should be at, in meters and radians
 
     // Getters
 
+    bool reached_goal() const;                                   // checks if the robot is at the goal pose
     const std::array<float, 3> &get_current_pose() const;      // retrieves the current pose of the robot
     const std::array<float, 2> &get_target_wheel_vels() const; // retrieves the target wheel velocities of the robot [left, right], in rad/s
 

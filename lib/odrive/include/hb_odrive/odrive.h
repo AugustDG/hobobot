@@ -112,11 +112,13 @@ public:
 
     void set_position(float position, float ff_velocity = 0.f, float ff_torque = 0.f);
     void set_velocity(float velocity, float ff_torque = 0.f);
+    void set_velocity_rad(float velocity_rad, float ff_torque = 0.f);
     void set_torque(float torque);
 
     // Getters
     float get_position() const;
     float get_velocity() const;
+    float get_velocity_rad() const;
     float get_torque() const;
     float get_current() const;
     float get_bus_voltage() const;

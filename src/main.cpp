@@ -189,7 +189,7 @@ void setup()
     o_left.set_closed_loop_control();
     o_right.set_closed_loop_control();
 
-    Serial.print(F("Creating Differential Drive...\n"));
+    Serial.print(F("Creating differential drive...\n"));
     ddrive_config_t ddrive_config = {
         .track_width = TRACK_WIDTH,
         .wheel_radius = WHEEL_RADIUS,
@@ -205,12 +205,13 @@ void setup()
         .default_linear_gain = DEFAULT_MC_LINEAR_GAIN,
         .default_angular_gain = DEFAULT_MC_ANGULAR_GAIN,
         .default_theta_gain = DEFAULT_MC_THETA_GAIN,
+        .goal_theta_only = true, // we're only using the mc for turning
         .ddrive = &ddrive,
         .imu = nullptr,
     };
     motion_controller = motion_controller_t(motion_controller_config);
     motion_controller.set_initial_pose(0.f, 0.f, 0.f);
-    motion_controller.set_goal(0.f, 0.f, 0.f);
+    motion_controller.set_goal_pose(0.f, 0.f, 0.f);
 
     Serial.print(F("Creating state machine...\n"));
     state_machine_config_t state_machine_config = {
@@ -262,6 +263,42 @@ void waiting_for_start()
 void searching_for_opponent()
 {
     Serial.print("Searching for opponent...\n");
+
+    static bool finished_searching_left = false;
+    static bool finished_searching_right = false;
+
+    if (!finished_searching_left)
+    {
+        motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * 30.f);
+        motion_controller.update(time_keeper.get_dt(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()});
+
+        if (motion_controller.reached_goal())
+        {
+            finished_searching_left = true;
+            motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * -30.f);
+        }
+    }
+
+    if (!finished_searching_right)
+    {
+        motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * -30.f);
+        motion_controller.update(time_keeper.get_dt(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()});
+
+        if (motion_controller.reached_goal())
+        {
+            finished_searching_right = true;
+            motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * 30.f);
+        }
+    }
+
+    if (finished_searching_left && finished_searching_right)
+    {
+        finished_searching_left = false;
+        finished_searching_right = false;
+
+        state_machine.set_state(MOVING_TO_OPPONENT);
+    }
+
     state_machine.set_state(MOVING_TO_OPPONENT);
 }
 

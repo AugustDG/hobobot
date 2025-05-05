@@ -254,6 +254,13 @@ void odrive_t::set_velocity(float velocity, float ff_torque)
     odrive_can->setVelocity(velocity, ff_torque);
 }
 
+void odrive_t::set_velocity_rad(float velocity_rad, float ff_torque)
+{
+    updated_feedback = false; // since we're moving the motor, whatever we have now is old
+
+    odrive_can->setVelocity(velocity_rad / TWO_PI, ff_torque);
+}
+
 void odrive_t::set_torque(float torque)
 {
     updated_feedback = false; // since we're moving the motor, whatever we have now is old
@@ -269,6 +276,11 @@ float odrive_t::get_position() const
 float odrive_t::get_velocity() const
 {
     return latest_feedback.Vel_Estimate;
+}
+
+float odrive_t::get_velocity_rad() const
+{
+    return latest_feedback.Vel_Estimate * TWO_PI;
 }
 
 float odrive_t::get_torque() const
