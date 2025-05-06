@@ -341,8 +341,10 @@ void avoiding_border() {
 }
 
 void stopped() {
-  Serial.print("Stopped...\n");
-  state_machine.set_state(WAITING_FOR_START);
+  Serial.print(F("Stopping...\n"));
+
+  ddrive.update(0.f, 0.f);
+  set_wheel_vels_from_ddrive_targets();
 }
 
 /* CALLBACKS */
