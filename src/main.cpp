@@ -30,7 +30,7 @@ void avoiding_opponent();
 void avoiding_border();
 void stopped();
 
-void set_wheel_vels_from_ddrive_targets(float linear_vel, float angular_vel);
+void set_wheel_vels_from_ddrive_targets();
 void set_wheel_vels_from_mc_targets();
 
 /* CONSTANTS */
@@ -287,6 +287,7 @@ void searching_for_opponent() {
             }
 
             motion_controller.update(time_keeper.get_dt(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()});
+            set_wheel_vels_from_mc_targets();
           },
       .post_action =
           [](substate_t *substate) {
@@ -314,7 +315,18 @@ void searching_for_opponent() {
 }
 
 void moving_to_opponent() {
-  Serial.print("Moving to opponent...\n");
+  found_opponent =
+      detect_object(std::vector<ir_sensor_t *>(front_ir_sensors.begin(), front_ir_sensors.end()), found_opponent_angle);
+
+  if (!found_opponent) {
+    Serial.print(F("Opponent lost, back to searching...\n"));
+    state_machine.set_state(SEARCHING_FOR_OPPONENT);
+    return;
+  }
+
+  ddrive.update(MAX_LINEAR_VEL, 0.f);
+  set_wheel_vels_from_ddrive_targets();
+
   state_machine.set_state(AVOIDING_BORDER);
 }
 
@@ -361,7 +373,8 @@ void ddrive_test() {
   float linear_velocity = 0.1f;                                       // m/s
   float angular_velocity = 0.25f * sin(2.f * PI * millis() / 1000.f); // rad/s
 
-  set_wheel_vels_from_ddrive_targets(linear_velocity, angular_velocity);
+  ddrive.update(linear_velocity, angular_velocity);
+  set_wheel_vels_from_ddrive_targets();
 }
 
 void odrive_test() {
@@ -412,9 +425,7 @@ void sensors_test() {
 
 /* UTILITIES */
 
-void set_wheel_vels_from_ddrive_targets(float linear_vel, float angular_vel) {
-  ddrive.update(linear_vel, angular_vel);
-
+void set_wheel_vels_from_ddrive_targets() {
   // get the left and right wheel velocities from the differential drive
   float left_wheel_velocity = ddrive.get_left_angular_vel() / TWO_PI;
   float right_wheel_velocity = ddrive.get_right_angular_vel() / TWO_PI;
