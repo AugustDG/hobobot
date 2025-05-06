@@ -1,4 +1,5 @@
-#include "state_machine.h"
+#include "hb_state_machine/state_machine.h"
+
 #include <unordered_set>
 #include "utils.hpp"
 

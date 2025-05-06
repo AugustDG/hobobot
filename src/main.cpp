@@ -7,7 +7,8 @@
 #include "hb_ddrive/ddrive.h"
 #include "hb_odrive/odrive.h"
 #include "hb_ddrive/motion_controller.h"
-#include "state_machine.h"
+#include "hb_state_machine/state_machine.h"
+#include "hb_state_machine/substate.hpp"
 #include "time_keeper.hpp"
 #include "utils.hpp"
 #include "types.h"
@@ -262,44 +263,23 @@ void waiting_for_start()
 
 void searching_for_opponent()
 {
-    Serial.print("Searching for opponent...\n");
-
-    static bool finished_searching_left = false;
-    static bool finished_searching_right = false;
-
-    if (!finished_searching_left)
-    {
-        motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * 30.f);
-        motion_controller.update(time_keeper.get_dt(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()});
-
-        if (motion_controller.reached_goal())
+    static float searching_angle = 30.f;
+    static substate_t search = {
+        .pre_action = []()
+        { Serial.printf("Searching at %f...\n", searching_angle); },
+        .action = []()
         {
-            finished_searching_left = true;
-            motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * -30.f);
-        }
-    }
+            motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * searching_angle);
+            motion_controller.update(time_keeper.get_dt(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()}); },
+        .post_action = [](substate_t *substate)
+        { 
+            searching_angle = -searching_angle; 
+            substate->reset(); },
+        .condition = []()
+        { return motion_controller.reached_goal() /* && found opponent */; },
+    };
 
-    if (!finished_searching_right)
-    {
-        motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * -30.f);
-        motion_controller.update(time_keeper.get_dt(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()});
-
-        if (motion_controller.reached_goal())
-        {
-            finished_searching_right = true;
-            motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * 30.f);
-        }
-    }
-
-    if (finished_searching_left && finished_searching_right)
-    {
-        finished_searching_left = false;
-        finished_searching_right = false;
-
-        state_machine.set_state(MOVING_TO_OPPONENT);
-    }
-
-    state_machine.set_state(MOVING_TO_OPPONENT);
+    search.execute();
 }
 
 void moving_to_opponent()
