@@ -1,0 +1,7 @@
+---
+BasedOnStyle: LLVM
+AlignAfterOpenBracket: AlwaysBreak
+AllowShortLambdasOnASingleLine: Inline
+ColumnLimit: 120
+SortIncludes: Never
+
