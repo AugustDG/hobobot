@@ -64,8 +64,11 @@ const std::vector<transition_t> TRANSITIONS = {
 
 /* GLOBAL VARIABLES */
 
-ir_sensor_t ir_sensors[ARRAY_SIZE(IR_PINS)];
-line_sensor_t line_sensors[ARRAY_SIZE(LINE_PINS)];
+std::array<ir_sensor_t, ARRAY_SIZE(IR_PINS)> ir_sensors = {};
+std::array<ir_sensor_t *, ARRAY_SIZE(IR_PINS) - 1> front_ir_sensors = {};
+std::array<ir_sensor_t *, 1> back_ir_sensors = {};
+
+std::array<line_sensor_t, ARRAY_SIZE(LINE_PINS)> line_sensors = {};
 micro_start_t micro_start;
 
 odrive_t o_left;
@@ -95,11 +98,19 @@ void setup() {
   for (size_t i = 0; i < ARRAY_SIZE(ir_sensors); i++) {
     const ir_sensor_config_t config = {
         .pin = IR_PINS[i],
+        .angle_from_center = 0.f,    // TODO: change to real values
+        .distance_from_center = 0.f, // TODO: change to real values
         .callback = nullptr,
         .debounce_config = &debounce_config,
     };
 
     ir_sensors[i] = ir_sensor_t(config);
+
+    if (i < ARRAY_SIZE(ir_sensors) - 1) {
+      front_ir_sensors[i] = &ir_sensors[i];
+    } else {
+      back_ir_sensors[0] = &ir_sensors[i];
+    }
   }
 
   iir_moving_average_config_t moving_average_config = {
@@ -250,23 +261,31 @@ void loop() {
 
 /* STATE FUNCTIONS */
 
+bool found_opponent = false;
+float found_opponent_angle = 0.f;
+
 void waiting_for_start() {
-  Serial.print("Match started!\n");
-  state_machine.set_state(SEARCHING_FOR_OPPONENT);
+  found_opponent =
+      detect_object(std::vector<ir_sensor_t *>(front_ir_sensors.begin(), front_ir_sensors.end()), found_opponent_angle);
+
+  if (found_opponent) {
+    Serial.printf("Found opponent at %f degrees!\n", RAD_TO_DEG * found_opponent_angle);
+    motion_controller.set_goal_pose(0.f, 0.f, found_opponent_angle);
+  }
 }
 
 void searching_for_opponent() {
-  static bool found_opponent = false;
-  static float searching_angle = 30.f;
+  static float searching_angle = PI / 6.f; // 30 degrees
 
   static substate_t search = {
-      .pre_action =
-          []() {
-            Serial.printf("Searching at %f...\n", searching_angle);
-          },
+      .pre_action = []() { Serial.printf("Searching at %f...\n", RAD_TO_DEG * searching_angle); },
       .action =
           []() {
-            motion_controller.set_goal_pose(0.f, 0.f, DEG_TO_RAD * searching_angle);
+            // if we have found an opponent, we stop searching and turn to it
+            if (!found_opponent) {
+              motion_controller.set_goal_pose(0.f, 0.f, searching_angle);
+            }
+
             motion_controller.update(time_keeper.get_dt(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()});
           },
       .post_action =
@@ -276,11 +295,22 @@ void searching_for_opponent() {
           },
       .condition =
           []() {
-            return motion_controller.reached_goal() /* && found opponent */;
+            found_opponent = detect_object(
+                std::vector<ir_sensor_t *>(front_ir_sensors.begin(), front_ir_sensors.end()), found_opponent_angle);
+
+            if (found_opponent) {
+              Serial.printf("Found opponent at %f degrees!\n", RAD_TO_DEG * found_opponent_angle);
+              motion_controller.set_goal_pose(0.f, 0.f, found_opponent_angle);
+            }
+
+            return motion_controller.reached_goal();
           },
   };
 
-  search.execute();
+  if (!search.execute() && found_opponent) {
+    // if we found the opponent, we stop searching and move to the opponent
+    state_machine.set_state(MOVING_TO_OPPONENT);
+  }
 }
 
 void moving_to_opponent() {
@@ -316,8 +346,9 @@ void odrive_error_cb(const odrive_t *odrive) {
   if (odrive->latest_error.Active_Errors & ODriveError::ODRIVE_ERROR_INITIALIZING)
     return; // ignore this error
 
-  Serial.printf("ODrive(%d) error: %d, disarm reason: %d\n", odrive->node_id, odrive->latest_error.Active_Errors,
-                odrive->latest_error.Disarm_Reason);
+  Serial.printf(
+      "ODrive(%d) error: %d, disarm reason: %d\n", odrive->node_id, odrive->latest_error.Active_Errors,
+      odrive->latest_error.Disarm_Reason);
 
   stop_all();
 }
