@@ -26,3 +26,5 @@ int line_sensor_t::read() {
 }
 
 bool line_sensor_t::read_thresholded() { return read() > threshold; }
+
+border_detection_t detect_border_rect(const std::array<line_sensor_t *, 4> &sensors) { return border_detection_t(); }

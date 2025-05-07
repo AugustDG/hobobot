@@ -16,6 +16,7 @@
 
 /* FUNCTION DECLARATIONS */
 
+void line_sensor_cb();
 void micro_start_cb();
 void odrive_error_cb(const odrive_t *odrive);
 
@@ -119,7 +120,7 @@ void setup() {
   for (size_t i = 0; i < ARRAY_SIZE(line_sensors); i++) {
     const line_sensor_config_t config = {
         .pin = LINE_PINS[i],
-        .callback = nullptr,
+        .callback = line_sensor_cb,
         .moving_average_config = &moving_average_config,
     };
 
@@ -299,6 +300,8 @@ void searching_for_opponent() {
             if (being_pushed) {
               Serial.print(F("Being pushed!\n"));
               state_machine.set_state(AVOIDING_OPPONENT);
+              return false; // false, because it's an sudden transition and we don't want any post action or
+                            // out-of-substate code to run
             }
 
             found_opponent = detect_object(
@@ -360,6 +363,17 @@ void stopped() {
 }
 
 /* CALLBACKS */
+
+void line_sensor_cb() {
+  // check if the line sensors detect a border
+  border_detection_t border = detect_border_rect(
+      std::array<line_sensor_t *, 4>{&line_sensors[0], &line_sensors[1], &line_sensors[2], &line_sensors[3]});
+
+  if (border != NO_BORDER) {
+    Serial.printf("Border detected: %d\n", border);
+    state_machine.set_state(AVOIDING_BORDER);
+  }
+}
 
 void micro_start_cb() {
   bool match_started = micro_start.read();
