@@ -44,4 +44,5 @@ bool detect_object(const std::vector<ir_sensor_t *> &sensors, float &found_angle
 
   return count > 0;
 }
+
 float triangulate_distance(const std::vector<ir_sensor_t> &sensors) {}

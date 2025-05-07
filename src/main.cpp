@@ -43,12 +43,7 @@ constexpr uint16_t MICRO_START_PIN = 6;
 
 constexpr sumo_state_t INITIAL_STATE = WAITING_FOR_START;
 const std::vector<uint32_t> STATES = {
-    WAITING_FOR_START,
-    SEARCHING_FOR_OPPONENT,
-    MOVING_TO_OPPONENT,
-    // AVOIDING_OPPONENT,
-    AVOIDING_BORDER,
-    STOPPED,
+    WAITING_FOR_START, SEARCHING_FOR_OPPONENT, MOVING_TO_OPPONENT, AVOIDING_OPPONENT, AVOIDING_BORDER, STOPPED,
 };
 
 const std::vector<transition_t> TRANSITIONS = {
@@ -56,8 +51,10 @@ const std::vector<transition_t> TRANSITIONS = {
     {WAITING_FOR_START, SEARCHING_FOR_OPPONENT},
     {SEARCHING_FOR_OPPONENT, MOVING_TO_OPPONENT},
     {SEARCHING_FOR_OPPONENT, AVOIDING_BORDER},
+    {SEARCHING_FOR_OPPONENT, AVOIDING_OPPONENT},
     {MOVING_TO_OPPONENT, SEARCHING_FOR_OPPONENT},
     {MOVING_TO_OPPONENT, AVOIDING_BORDER},
+    {MOVING_TO_OPPONENT, AVOIDING_OPPONENT},
     {AVOIDING_BORDER, SEARCHING_FOR_OPPONENT},
     {STOPPED, WAITING_FOR_START},
 };
@@ -213,7 +210,8 @@ void setup() {
       .default_linear_gain = DEFAULT_MC_LINEAR_GAIN,
       .default_angular_gain = DEFAULT_MC_ANGULAR_GAIN,
       .default_theta_gain = DEFAULT_MC_THETA_GAIN,
-      .goal_theta_only = true, // we're only using the mc for turning
+      .goal_theta_only =
+          true, // we're only using the mc for turning, TODO: check that this does not interfere with pushed logic
       .ddrive = &ddrive,
       .imu = nullptr,
   };
@@ -232,6 +230,7 @@ void setup() {
               {SEARCHING_FOR_OPPONENT, searching_for_opponent},
               {MOVING_TO_OPPONENT, moving_to_opponent},
               {AVOIDING_BORDER, avoiding_border},
+              {AVOIDING_OPPONENT, avoiding_opponent},
               {STOPPED, stopped},
           },
       .should_log = true,
@@ -253,14 +252,13 @@ void loop() {
   // necessary to process any CAN messages and interrupts
   odrive_can_refresh_events();
 
-  state_machine.loop(); // state machine processing
   time_keeper.update();
-
-  set_wheel_vels_from_mc_targets();
+  state_machine.loop(); // state machine processing
 }
 
 /* STATE FUNCTIONS */
 
+bool being_pushed = false;
 bool found_opponent = false;
 float found_opponent_angle = 0.f;
 
@@ -282,6 +280,7 @@ void searching_for_opponent() {
       .action =
           []() {
             // if we have found an opponent, we stop searching and turn to it
+            // we don't do the same if we're being pushed, because we transition out of this state when that happens
             if (!found_opponent) {
               motion_controller.set_goal_pose(0.f, 0.f, searching_angle);
             }
@@ -296,9 +295,14 @@ void searching_for_opponent() {
           },
       .condition =
           []() {
+            being_pushed = motion_controller.pushed_detected();
+            if (being_pushed) {
+              Serial.print(F("Being pushed!\n"));
+              state_machine.set_state(AVOIDING_OPPONENT);
+            }
+
             found_opponent = detect_object(
                 std::vector<ir_sensor_t *>(front_ir_sensors.begin(), front_ir_sensors.end()), found_opponent_angle);
-
             if (found_opponent) {
               Serial.printf("Found opponent at %f degrees!\n", RAD_TO_DEG * found_opponent_angle);
               motion_controller.set_goal_pose(0.f, 0.f, found_opponent_angle);
@@ -317,10 +321,16 @@ void searching_for_opponent() {
 void moving_to_opponent() {
   found_opponent =
       detect_object(std::vector<ir_sensor_t *>(front_ir_sensors.begin(), front_ir_sensors.end()), found_opponent_angle);
-
   if (!found_opponent) {
     Serial.print(F("Opponent lost, back to searching...\n"));
     state_machine.set_state(SEARCHING_FOR_OPPONENT);
+    return;
+  }
+
+  being_pushed = motion_controller.pushed_detected();
+  if (being_pushed) {
+    Serial.print(F("Being pushed!\n"));
+    state_machine.set_state(AVOIDING_OPPONENT);
     return;
   }
 
@@ -332,12 +342,14 @@ void moving_to_opponent() {
 
 void avoiding_opponent() {
   Serial.print("Avoiding opponent...\n");
-  state_machine.set_state(AVOIDING_BORDER);
+
+  // TODO: implement opponent avoiding strategy
 }
 
 void avoiding_border() {
   Serial.print("Avoiding border...\n");
-  state_machine.set_state(STOPPED);
+
+  // TODO: implement border avoiding strategy
 }
 
 void stopped() {

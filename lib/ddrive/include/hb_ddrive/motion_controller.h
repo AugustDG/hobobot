@@ -11,6 +11,8 @@ struct motion_controller_config_t {
   float pose_theta_threshold = 0.05f; // rad; how close to the goal theta we need to be to consider it reached
   float pose_alpha = 0.5f; // how much to trust the algorithm vs the sensors (0.f = all sensors, 1.f = all algorithm)
 
+  float pushed_threshold = 0.2f; // m/s; how much difference between IMU and target velocity to consider it pushed
+
   float default_linear_gain = 1.f;  // how aggressive should the robot be when moving forward
   float default_angular_gain = 2.f; // how aggressive should the robot be when turning
   float default_theta_gain = -0.5f; // how smooth is the path to the final orientation
@@ -29,6 +31,8 @@ private:
   float pose_xy_threshold;    // m; how close to the goal x and y we need to be to consider it reached
   float pose_theta_threshold; // rad; how close to the goal theta we need to be to consider it reached
   float pose_alpha;           // how much to trust the algorithm vs the sensors (0.f = all sensors, 1.f = all algorithm)
+
+  float pushed_threshold; // m/s; how much difference between IMU and target velocity to consider it pushed
 
   float default_linear_gain;  // how aggressive should the robot be when moving forward
   float default_angular_gain; // how aggressive should the robot be when turning
@@ -55,8 +59,9 @@ public:
   void update_with_linear_gain(float dt, const std::array<float, 2> &wheel_vels, float linear_gain_override);
   void update_with_angular_gain(float dt, const std::array<float, 2> &wheel_vels, float angular_gain_override);
   void update_with_theta_gain(float dt, const std::array<float, 2> &wheel_vels, float theta_gain_override);
-  void update(float dt, const std::array<float, 2> &wheel_vels, float linear_gain_override, float angular_gain_override,
-              float theta_gain_override);
+  void update(
+      float dt, const std::array<float, 2> &wheel_vels, float linear_gain_override, float angular_gain_override,
+      float theta_gain_override);
 
   // Setters
 
@@ -65,7 +70,9 @@ public:
 
   // Getters
 
-  bool reached_goal() const;                            // checks if the robot is at the goal pose
+  bool reached_goal() const;    // checks if the robot is at the goal pose
+  bool pushed_detected() const; // checks if the robot is pushed
+
   const std::array<float, 3> &get_current_pose() const; // retrieves the current pose of the robot
   const std::array<float, 2> &
   get_target_wheel_vels() const; // retrieves the target wheel velocities of the robot [left, right], in rad/s
@@ -74,7 +81,8 @@ private:
   void update_current_vels();         // updates the current velocities of the robot
   void update_current_pose(float dt); // updates the current pose of the robot
 
-  void compute_target_vels(float linear_gain, float angular_gain,
-                           float theta_gain); // updates the target velocities of the robot
-  void compute_target_wheel_vels();           // updates the target wheel velocities of the robot
+  void compute_target_vels(
+      float linear_gain, float angular_gain,
+      float theta_gain);            // updates the target velocities of the robot
+  void compute_target_wheel_vels(); // updates the target wheel velocities of the robot
 };

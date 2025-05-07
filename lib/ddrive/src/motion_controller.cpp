@@ -21,23 +21,24 @@ void motion_controller_t::update(float dt, const std::array<float, 2> &wheel_vel
   update(dt, wheel_vels, default_linear_gain, default_angular_gain, default_theta_gain);
 }
 
-void motion_controller_t::update_with_linear_gain(float dt, const std::array<float, 2> &wheel_vels,
-                                                  float override_linear_gain) {
+void motion_controller_t::update_with_linear_gain(
+    float dt, const std::array<float, 2> &wheel_vels, float override_linear_gain) {
   update(dt, wheel_vels, override_linear_gain, default_angular_gain, default_theta_gain);
 }
 
-void motion_controller_t::update_with_angular_gain(float dt, const std::array<float, 2> &wheel_vels,
-                                                   float override_angular_gain) {
+void motion_controller_t::update_with_angular_gain(
+    float dt, const std::array<float, 2> &wheel_vels, float override_angular_gain) {
   update(dt, wheel_vels, default_linear_gain, override_angular_gain, default_theta_gain);
 }
 
-void motion_controller_t::update_with_theta_gain(float dt, const std::array<float, 2> &wheel_vels,
-                                                 float override_theta_gain) {
+void motion_controller_t::update_with_theta_gain(
+    float dt, const std::array<float, 2> &wheel_vels, float override_theta_gain) {
   update(dt, wheel_vels, default_linear_gain, default_angular_gain, override_theta_gain);
 }
 
-void motion_controller_t::update(float dt, const std::array<float, 2> &wheel_vels, float override_linear_gain,
-                                 float override_angular_gain, float override_theta_gain)
+void motion_controller_t::update(
+    float dt, const std::array<float, 2> &wheel_vels, float override_linear_gain, float override_angular_gain,
+    float override_theta_gain)
 
 {
   // store the current state of the wheels
@@ -86,6 +87,14 @@ bool motion_controller_t::reached_goal() const {
   bool reached_theta = fabs(dtheta) < pose_theta_threshold;
 
   return reached_xy && reached_theta;
+}
+
+bool motion_controller_t::pushed_detected() const {
+  float ddrive_linear_vel = ddrive->target_linear_velocity;
+  float imu_linear_vel = imu->get_linear_vel()[0]; // x is forward, and in this class we consider forward as linear vel
+
+  float delta = fabs(ddrive_linear_vel - imu_linear_vel);
+  return delta > pushed_threshold;
 }
 
 const std::array<float, 3> &motion_controller_t::get_current_pose() const { return current_pose; }
