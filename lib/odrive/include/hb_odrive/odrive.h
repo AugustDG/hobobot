@@ -16,7 +16,7 @@ typedef void (*odrive_error_callback_t)(const odrive_t *odrive);
 
 /* Static */
 
-static std::vector<odrive_t *> odrives = std::vector<odrive_t *>();
+inline static std::vector<odrive_t *> odrives = std::vector<odrive_t *>();
 
 void odrive_can_refresh_events();
 bool odrive_can_process_message();
@@ -92,6 +92,7 @@ public:
   odrive_t() = default;
   odrive_t(const odrive_config_t &config);
 
+  void init();
   void stop();
 
   // Configuration

@@ -134,10 +134,9 @@ odrive_t::odrive_t(const odrive_config_t &config) {
   odrive_can->onTorques(on_torques, this);
   odrive_can->onCurrents(on_currents, this);
   odrive_can->onError(on_error, this);
-
-  // store a copy of the pointer to the ODrive
-  odrives.push_back(this);
 }
+
+void odrive_t::init() { odrives.push_back(this); }
 
 void odrive_t::save_configuration() {
   Reboot_msg_t msg;

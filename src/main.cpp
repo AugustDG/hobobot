@@ -152,7 +152,9 @@ void setup() {
   };
 
   o_left = odrive_t(o_left_config);
+  o_left.init();
   o_right = odrive_t(o_right_config);
+  o_right.init();
 
   do
     Serial.print(F("Waiting for ODrive heartbeats...\n"));
@@ -253,8 +255,10 @@ void loop() {
   // necessary to process any CAN messages and interrupts
   odrive_can_refresh_events();
 
-  time_keeper.update();
-  state_machine.loop(); // state machine processing
+  // time_keeper.update();
+  // state_machine.loop(); // state machine processing
+
+  ddrive_test();
 }
 
 /* STATE FUNCTIONS */
