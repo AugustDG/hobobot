@@ -4,6 +4,24 @@
 #include <ODriveFlexCAN.hpp>
 #include "utils.hpp"
 
+bool register_odrive(odrive_t *odrive_ptr) {
+  if (std::find(odrives.begin(), odrives.end(), odrive_ptr) == odrives.end())
+    return false;
+
+  ODriveCAN *odrive_can = odrive_ptr->odrive_can;
+
+  odrive_can->onFeedback(on_feedback, odrive_ptr);
+  odrive_can->onStatus(on_heartbeat, odrive_ptr);
+  odrive_can->onBusVI(on_bus_vi, odrive_ptr);
+  odrive_can->onTorques(on_torques, odrive_ptr);
+  odrive_can->onCurrents(on_currents, odrive_ptr);
+  odrive_can->onError(on_error, odrive_ptr);
+
+  odrives.emplace_back(odrive_ptr);
+
+  return true;
+}
+
 void odrive_can_refresh_events() { refresh_can_events(); }
 
 bool odrive_can_process_message() {
@@ -127,16 +145,7 @@ odrive_t::odrive_t(const odrive_config_t &config) {
   error_callback = config.error_callback;
 
   odrive_can = new ODriveCAN(wrap_can_intf(interface), config.node_id);
-
-  odrive_can->onFeedback(on_feedback, this);
-  odrive_can->onStatus(on_heartbeat, this);
-  odrive_can->onBusVI(on_bus_vi, this);
-  odrive_can->onTorques(on_torques, this);
-  odrive_can->onCurrents(on_currents, this);
-  odrive_can->onError(on_error, this);
 }
-
-void odrive_t::init() { odrives.push_back(this); }
 
 void odrive_t::save_configuration() {
   Reboot_msg_t msg;

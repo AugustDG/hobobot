@@ -152,9 +152,10 @@ void setup() {
   };
 
   o_left = odrive_t(o_left_config);
-  o_left.init();
   o_right = odrive_t(o_right_config);
-  o_right.init();
+
+  register_odrive(&o_left);
+  register_odrive(&o_right);
 
   do
     Serial.print(F("Waiting for ODrive heartbeats...\n"));
