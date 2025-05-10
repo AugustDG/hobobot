@@ -90,7 +90,7 @@ bool motion_controller_t::reached_goal() const {
 }
 
 bool motion_controller_t::pushed_detected() const {
-  float ddrive_linear_vel = ddrive->target_linear_velocity;
+  float ddrive_linear_vel = ddrive->get_target_linear_vel(); // m/s
   float imu_linear_vel = imu->get_linear_vel()[0]; // x is forward, and in this class we consider forward as linear vel
 
   float delta = fabs(ddrive_linear_vel - imu_linear_vel);

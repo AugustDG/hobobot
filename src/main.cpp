@@ -403,10 +403,11 @@ void odrive_error_cb(const odrive_t *odrive) {
 void ddrive_test() {
   // generate a circle for the target angular velocity and keep linear velocity
   // constant
-  float linear_velocity = 0.1f;                                       // m/s
+  float linear_velocity = 5.f * sin(2.f * PI * millis() / 1000.f);                                       // m/s
   float angular_velocity = 0.25f * sin(2.f * PI * millis() / 1000.f); // rad/s
 
   ddrive.update(linear_velocity, angular_velocity);
+
   set_wheel_vels_from_ddrive_targets();
 }
 

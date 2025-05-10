@@ -5,7 +5,7 @@
 #include "utils.hpp"
 
 bool register_odrive(odrive_t *odrive_ptr) {
-  if (std::find(odrives.begin(), odrives.end(), odrive_ptr) == odrives.end())
+  if (std::find(odrives.begin(), odrives.end(), odrive_ptr) != odrives.end())
     return false;
 
   ODriveCAN *odrive_can = odrive_ptr->odrive_can;
@@ -17,7 +17,9 @@ bool register_odrive(odrive_t *odrive_ptr) {
   odrive_can->onCurrents(on_currents, odrive_ptr);
   odrive_can->onError(on_error, odrive_ptr);
 
-  odrives.emplace_back(odrive_ptr);
+  odrives.push_back(odrive_ptr);
+
+  printf("ODrive(%lu) registered\n", odrive_ptr->node_id);
 
   return true;
 }
