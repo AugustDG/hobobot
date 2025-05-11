@@ -20,6 +20,7 @@ void line_sensor_cb();
 void micro_start_cb();
 void odrive_error_cb(const odrive_t *odrive);
 
+void imu_test();
 void ddrive_test();
 void odrive_test();
 void sensors_test();
@@ -68,6 +69,8 @@ std::array<ir_sensor_t *, 1> back_ir_sensors = {};
 
 std::array<line_sensor_t, ARRAY_SIZE(LINE_PINS)> line_sensors = {};
 micro_start_t micro_start;
+
+imu_t imu;
 
 odrive_t o_left;
 odrive_t o_right;
@@ -127,6 +130,12 @@ void setup() {
     line_sensors[i] = line_sensor_t(config);
   }
 
+  Serial.printf("Creating IMU\n");
+  imu_config_t imu_config = {};
+  imu = imu_t(imu_config);
+
+  return;
+
   Serial.printf(F("Creating micro start sensor\n"));
   micro_start_config micro_start_config = {
       .pin = MICRO_START_PIN,
@@ -143,11 +152,11 @@ void setup() {
   can_setup(&can_config);
 
   odrive_config_t o_left_config = {
-      .node_id = ODRV0_NODE_ID,
+      .node_id = ODRV_LEFT_NODE_ID,
       .error_callback = odrive_error_cb,
   };
   odrive_config_t o_right_config = {
-      .node_id = ODRV1_NODE_ID,
+      .node_id = ODRV_RIGHT_NODE_ID,
       .error_callback = odrive_error_cb,
   };
 
@@ -217,7 +226,7 @@ void setup() {
       .goal_theta_only =
           true, // we're only using the mc for turning, TODO: check that this does not interfere with pushed logic
       .ddrive = &ddrive,
-      .imu = nullptr,
+      .imu = &imu,
   };
   motion_controller = motion_controller_t(motion_controller_config);
   motion_controller.set_initial_pose(0.f, 0.f, 0.f);
@@ -256,10 +265,10 @@ void loop() {
   // necessary to process any CAN messages and interrupts
   odrive_can_refresh_events();
 
-  // time_keeper.update();
+  time_keeper.update();
   // state_machine.loop(); // state machine processing
 
-  ddrive_test();
+  imu_test();
 }
 
 /* STATE FUNCTIONS */
@@ -291,7 +300,7 @@ void searching_for_opponent() {
               motion_controller.set_goal_pose(0.f, 0.f, searching_angle);
             }
 
-            motion_controller.update(time_keeper.get_dt(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()});
+            motion_controller.update(time_keeper.get_dt_s(), {o_left.get_velocity_rad(), o_right.get_velocity_rad()});
             set_wheel_vels_from_mc_targets();
           },
       .post_action =
@@ -399,6 +408,20 @@ void odrive_error_cb(const odrive_t *odrive) {
 }
 
 /* TESTS */
+
+void imu_test() {
+  imu.update(time_keeper.get_dt_s());
+
+  const std::array<float, 3> linear_vel = imu.get_linear_vel();
+  const std::array<float, 3> angular_vel = imu.get_angular_vel();
+  const std::array<float, 3> rotation = imu.get_rotation();
+  const std::array<float, 3> accel = imu.get_accel();
+
+  Serial.printf("%f %f %f | %f %f %f | %f %f %f | %f %f %f\n", linear_vel[0], linear_vel[1], linear_vel[2], angular_vel[0],
+                angular_vel[1], angular_vel[2], rotation[0], rotation[1], rotation[2], accel[0], accel[1], accel[2]);
+
+  delay(10);
+}
 
 void ddrive_test() {
   // generate a circle for the target angular velocity and keep linear velocity
