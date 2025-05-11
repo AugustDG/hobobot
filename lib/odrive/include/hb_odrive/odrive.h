@@ -52,8 +52,8 @@ enum odrive_controller_mode_change_t : uint8_t {
 };
 
 enum odrive_node_id_t : uint32_t {
-  ODRV0_NODE_ID = 0,
-  ODRV1_NODE_ID = 1,
+  ODRV_LEFT_NODE_ID = 0,
+  ODRV_RIGHT_NODE_ID = 1,
 };
 
 /* Objects */
@@ -115,11 +115,11 @@ public:
   void set_torque(float torque);
 
   // Getters
-  float get_position() const;
-  float get_velocity() const;
-  float get_velocity_rad() const;
-  float get_torque() const;
-  float get_current() const;
-  float get_bus_voltage() const;
-  float get_bus_current() const;
+  inline float get_position() const { return latest_feedback.Pos_Estimate; }
+  inline float get_velocity() const { return latest_feedback.Vel_Estimate; }
+  inline float get_velocity_rad() const { return latest_feedback.Vel_Estimate * TWO_PI; }
+  inline float get_torque() const { return latest_torques.Torque_Estimate; }
+  inline float get_current() const { return latest_currents.Iq_Measured; }
+  inline float get_bus_voltage() const { return latest_bus_voltage_current.Bus_Voltage; }
+  inline float get_bus_current() const { return latest_bus_voltage_current.Bus_Current; }
 };

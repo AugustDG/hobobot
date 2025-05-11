@@ -19,7 +19,7 @@ bool register_odrive(odrive_t *odrive_ptr) {
 
   odrives.push_back(odrive_ptr);
 
-  printf("ODrive(%lu) registered\n", odrive_ptr->node_id);
+  Serial.printf("ODrive(%lu) registered\n", odrive_ptr->node_id);
 
   return true;
 }
@@ -234,17 +234,3 @@ void odrive_t::set_torque(float torque) {
 
   odrive_can->setTorque(torque);
 }
-
-float odrive_t::get_position() const { return latest_feedback.Pos_Estimate; }
-
-float odrive_t::get_velocity() const { return latest_feedback.Vel_Estimate; }
-
-float odrive_t::get_velocity_rad() const { return latest_feedback.Vel_Estimate * TWO_PI; }
-
-float odrive_t::get_torque() const { return latest_torques.Torque_Estimate; }
-
-float odrive_t::get_current() const { return latest_currents.Iq_Measured; }
-
-float odrive_t::get_bus_voltage() const { return latest_bus_voltage_current.Bus_Voltage; }
-
-float odrive_t::get_bus_current() const { return latest_bus_voltage_current.Bus_Current; }
