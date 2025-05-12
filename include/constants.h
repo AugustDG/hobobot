@@ -11,7 +11,8 @@ constexpr float TRACK_WIDTH = 0.153f;  // m
 
 /* POSE */
 
-constexpr float POSE_ALPHA = 0.5f; // how much to trust the algorithm vs the sensors (0.f = all sensors, 1.f = all algorithm)
+constexpr float POSE_ALPHA =
+    0.95f; // how much to trust the algorithm vs the sensors (0.f = all sensors, 1.f = all algorithm)
 
 /* CONTROL */
 
