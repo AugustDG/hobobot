@@ -1,0 +1,3 @@
+[submodule "lib/imu/vendor/BMX160"]
+	path = lib/imu/vendor/BMX160
+	url = https://github.com/AugustDG/BMX160

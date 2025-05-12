@@ -1,0 +1,16 @@
+{
+    "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
+    "name": "hobobot-imu",
+    "version": "0.0.1",
+    "dependencies": {
+        "madgwickahrs": "https://github.com/arduino-libraries/MadgwickAHRS"
+    },
+    "build": {
+        "includeDir": ".",
+        "srcDir": ".",
+        "flags": [
+            "-I include",
+            "-I vendor"
+        ]
+    }
+}

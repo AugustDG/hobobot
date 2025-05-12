@@ -133,6 +133,7 @@ void setup() {
   Serial.printf("Creating IMU\n");
   imu_config_t imu_config = {};
   imu = imu_t(imu_config);
+  imu.calibrate();
 
   return;
 
@@ -410,23 +411,24 @@ void odrive_error_cb(const odrive_t *odrive) {
 /* TESTS */
 
 void imu_test() {
-  imu.update(time_keeper.get_dt_s());
+  imu.update(time_keeper.get_dt_s(), true);
 
   const std::array<float, 3> linear_vel = imu.get_linear_vel();
   const std::array<float, 3> angular_vel = imu.get_angular_vel();
   const std::array<float, 3> rotation = imu.get_rotation();
   const std::array<float, 3> accel = imu.get_accel();
 
-  Serial.printf("%f %f %f | %f %f %f | %f %f %f | %f %f %f\n", linear_vel[0], linear_vel[1], linear_vel[2], angular_vel[0],
-                angular_vel[1], angular_vel[2], rotation[0], rotation[1], rotation[2], accel[0], accel[1], accel[2]);
-
-  delay(10);
+  Serial.printf(
+      "Linear: %7.3f, %7.3f, %7.3f | Angular: %7.3f, %7.3f, %7.3f | Rotation: %7.3f, %7.3f, %7.3f | Accel: "
+      "%7.3f, %7.3f, %7.3f\n",
+      linear_vel[0], linear_vel[1], linear_vel[2], angular_vel[0], angular_vel[1], angular_vel[2], rotation[0],
+      rotation[1], rotation[2], accel[0], accel[1], accel[2]);
 }
 
 void ddrive_test() {
   // generate a circle for the target angular velocity and keep linear velocity
   // constant
-  float linear_velocity = 5.f * sin(2.f * PI * millis() / 1000.f);                                       // m/s
+  float linear_velocity = 5.f * sin(2.f * PI * millis() / 1000.f);    // m/s
   float angular_velocity = 0.25f * sin(2.f * PI * millis() / 1000.f); // rad/s
 
   ddrive.update(linear_velocity, angular_velocity);
