@@ -102,4 +102,8 @@ void imu_t::compute_linear_vel(float dt) {
   linear_vel[0] += lin_ax * dt;
   linear_vel[1] += lin_ay * dt;
   linear_vel[2] += lin_az * dt;
+
+  linear_vel[0] *= 0.999f;
+  linear_vel[1] *= 0.999f;
+  linear_vel[2] *= 0.999f;
 }
